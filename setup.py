@@ -20,6 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'cam_optical2cam_ros_tf = transforms.cam_optical2cam_ros:main',
+            'base2cam_optical_tf = transforms.base2cam_optical:main',   
         ],
     },
 )
