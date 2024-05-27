@@ -1,0 +1,17 @@
+/**:
+  ros__parameters:
+    image_size:
+      - 640
+      - 480
+    output_encoding: bgr8
+    camera_frame_id: camera_optical_frame
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          durability: volatile
+          history: keep_last
+          reliability: reliable
+    use_sim_time: false
+    video_device: /dev/video2
+    camera_info_url: "package://silo/config/c270.yaml"
