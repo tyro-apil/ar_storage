@@ -13,8 +13,9 @@ from launch.actions import DeclareLaunchArgument
 
 def generate_launch_description():
   namespace = 'silo'
-  input_image_topic = 'logi/image_raw'
+  input_image_topic = 'image_raw'
   model = 'o_blunder.pt'
+  tracker_yaml_path = '/home/apil/main_ws/src/yolov8_ros/yolov8_ros/config/custom_tracker.yaml'
   
   v4l2_camera_params = os.path.join(
     get_package_share_directory('silo'),
@@ -44,6 +45,7 @@ def generate_launch_description():
       'namespace': '',                    # By default, the namespace is set to 'yolo'
       'input_image_topic': input_image_topic,
       'model': model,
+      'tracker': tracker_yaml_path
     }.items()
     )
   yolov8_bringup = GroupAction(
@@ -55,7 +57,7 @@ def generate_launch_description():
   
   transforms = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
-      get_package_share_directory('oakd'), 'launch'),
+      get_package_share_directory('silo'), 'launch'),
       '/transforms.launch.py'])
     )
   transforms = GroupAction(
