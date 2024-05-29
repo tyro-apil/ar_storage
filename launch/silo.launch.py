@@ -67,8 +67,22 @@ def generate_launch_description():
     ]
   )
 
+  state_estimation = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource([os.path.join(
+      get_package_share_directory('silo'), 'launch'),
+      '/state_estimation.launch.py'])
+    )
+  state_estimation = GroupAction(
+    actions=[
+      PushRosNamespace(namespace),
+      state_estimation,
+    ]
+  )
+  
+
   return LaunchDescription([
     cam_driver,
     transforms,
     yolov8_bringup,
+    state_estimation
   ])
