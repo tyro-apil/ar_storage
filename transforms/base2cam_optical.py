@@ -27,7 +27,7 @@ class StaticFramePublisher(Node):
 
     t.header.stamp = self.get_clock().now().to_msg()
     t.header.frame_id = 'base_link'
-    t.child_frame_id = 'camera_optical_frame'
+    t.child_frame_id = 'silo_camera_optical_frame'
 
     t.transform.translation.x = float(self.translation_[0])
     t.transform.translation.y = float(self.translation_[1])
