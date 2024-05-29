@@ -26,7 +26,6 @@ def generate_launch_description():
     package='v4l2_camera',
     executable='v4l2_camera_node',
     name='v4l2_camera',
-    namespace='logi',
     output='screen',
     parameters=[v4l2_camera_params],
   )
