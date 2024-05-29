@@ -17,6 +17,8 @@ class StateEstimation(Node):
   def __init__(self):
     super().__init__('state_estimation')
 
+    self.declare_parameter("team_color", "blue")
+
     self.detections_subscriber = self.create_subscription(
       DetectionArray,
       "tracking",
@@ -25,6 +27,11 @@ class StateEstimation(Node):
     )
     self.detections_subscriber
 
+    team_color = self.get_parameter("team_color").get_parameter_value().string_value
+    if team_color == "blue":
+      self.silo_order_descending = False
+    else:
+      self.silo_order_descending = True
     self.state = None
     self.silos_num = None
     self.balls_num = None
@@ -39,7 +46,7 @@ class StateEstimation(Node):
       self.get_logger().warn("Too many silos detected")
 
     # sort silos from left to right
-    sorted_silos = sorted(silos, key=lambda x: x.bbox.center.position.x)
+    sorted_silos = sorted(silos, key=lambda x: x.bbox.center.position.x, reverse=self.silo_order_descending)
 
     # get region of interest of detected silos 
     silo_bboxes_xywh = [self.parse_bbox(silo.bbox) for silo in sorted_silos]

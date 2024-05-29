@@ -16,7 +16,8 @@ def generate_launch_description():
   input_image_topic = 'image_raw'
   model = 'o_blunder.pt'
   tracker_yaml_path = '/home/apil/main_ws/src/yolov8_ros/yolov8_ros/config/custom_tracker.yaml'
-  
+  team_color = 'blue'
+
   v4l2_camera_params = os.path.join(
     get_package_share_directory('silo'),
     'config',
@@ -70,7 +71,8 @@ def generate_launch_description():
   state_estimation = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
       get_package_share_directory('silo'), 'launch'),
-      '/state_estimation.launch.py'])
+      '/state_estimation.launch.py']),
+      launch_arguments={'team_color': team_color}.items()
     )
   state_estimation = GroupAction(
     actions=[
