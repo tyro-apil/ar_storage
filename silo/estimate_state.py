@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 
 from yolov8_msgs.msg import DetectionArray, BoundingBox2D
+from silo_msgs.msg import Silo, SiloArray
 
 def xywh2xyxy(xywh):
   """Converts bbox xywh format into xyxy format"""
@@ -18,7 +19,12 @@ class StateEstimation(Node):
     super().__init__('state_estimation')
 
     self.declare_parameter("team_color", "blue")
-
+    
+    self.silos_state_publisher = self.create_publisher(
+      SiloArray,
+      "silo_state",
+      10
+    )
     self.detections_subscriber = self.create_subscription(
       DetectionArray,
       "tracking",
@@ -27,6 +33,7 @@ class StateEstimation(Node):
     )
     self.detections_subscriber
 
+    self.silos_state_msg = SiloArray()
     team_color = self.get_parameter("team_color").get_parameter_value().string_value
     if team_color == "blue":
       self.silo_order_descending = False
@@ -45,7 +52,7 @@ class StateEstimation(Node):
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
 
-    # sort silos from left to right
+    # sort silos 
     sorted_silos = sorted(silos, key=lambda x: x.bbox.center.position.x, reverse=self.silo_order_descending)
 
     # get region of interest of detected silos 
@@ -70,10 +77,15 @@ class StateEstimation(Node):
 
     # stringify the state of silos
     state_repr = self.stringify_state(state)
+    silos_state_msg = self.get_silo_state_msg(state_repr, silo_bboxes_xywh)
 
     # update state with strings for each silo
     self.update_state(state_repr)
     self.display_state()
+
+    # publish the state of silos
+    self.silos_state_msg = silos_state_msg
+    self.silos_state_publisher.publish(silos_state_msg)
   
   def filter_detections(self, detections):
     silos = list(
@@ -116,6 +128,15 @@ class StateEstimation(Node):
       log += f"Silo{i+1}: {silo} | "
     self.get_logger().info(log)
 
+  def get_silo_state_msg(self, silos_state, silo_bboxes_xywh):
+    silo_state_msg = SiloArray()
+    for i, state in enumerate(silos_state):
+      silo_msg = Silo()
+      silo_msg.index = i+1
+      silo_msg.state = state
+      silo_msg.xywh.extend(silo_bboxes_xywh[i])
+      silo_state_msg.silos.append(silo_msg)
+    return silo_state_msg
 
 def main(args=None):
   rclpy.init(args=args)
