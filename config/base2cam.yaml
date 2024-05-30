@@ -1,4 +1,4 @@
 /**:
   ros__parameters:
-    translation: [0.000, 0.000, 0.000]
+    translation: [-0.120, 0.140, 0.480]
     ypr: [90.0, 0.0, -90.0]
