@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    # x coordinates of each line
+    silos_x: [-1.5, -0.75, 0.0, 0.75, 1.5]
+    silo_radius: 0.125
+    silo_height: 0.50
+    plank_height: 0.15
+    silo_stand_height: 0.10
