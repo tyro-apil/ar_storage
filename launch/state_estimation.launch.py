@@ -10,6 +10,24 @@ from launch.actions import DeclareLaunchArgument
 
 
 def generate_launch_description():  
+  camera_info_config = os.path.join(
+    get_package_share_directory('silo'),
+    'config',
+    'camera_info.yaml'
+  )
+
+  base2cam_config = os.path.join(
+    get_package_share_directory('silo'),
+    'config',
+    'base2cam.yaml'
+  ) 
+
+  silo_config = os.path.join(
+    get_package_share_directory('silo'),
+    'config',
+    'silo.yaml'
+  )
+
   team_color = LaunchConfiguration('team_color', default='blue')
   team_color_cmd = DeclareLaunchArgument(
     'team_color',
@@ -22,6 +40,13 @@ def generate_launch_description():
     executable='state_estimation_node',
     name='state_estimation_node',
     parameters=[{'team_color': team_color}],
+  )
+
+  state_estimation_node_cmd= Node(
+    package='silo',
+    executable='silo_matching_node',
+    name='silo_matching_node',
+    parameters=[camera_info_config, base2cam_config, silo_config],
   )
   
   ld = LaunchDescription()
