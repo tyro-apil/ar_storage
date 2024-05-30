@@ -20,7 +20,7 @@ class StaticFramePublisher(Node):
 
     # Publish static transforms once at startup
     self.make_transforms()
-    self.get_logger().info('Static base2cam_optical transform published')
+    self.get_logger().info('Silo side: static base2cam_optical transform published')
 
   def make_transforms(self):
     t = TransformStamped()
