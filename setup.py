@@ -29,6 +29,7 @@ setup(
             'cam_optical2cam_ros_tf = transforms.cam_optical2cam_ros:main',
             'base2cam_optical_tf = transforms.base2cam_optical:main',   
             'state_estimation_node = silo.estimate_state:main',
+            'silo_matching_node = silo.match_silo:main',
         ],
     },
 )
