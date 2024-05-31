@@ -11,11 +11,11 @@ class SiloMatching(Node):
   def __init__(self):
     super().__init__('silo_match')
     self.declare_parameter("team_color", "blue")
-    self.declare_parameter("silos_x", [0.0]*5)
+    self.declare_parameter("silos_y", [0.0]*5)
+    self.declare_parameter("silo_z_min", 0.0)
+    self.declare_parameter("silo_z_max", 0.0)
+    self.declare_parameter("silo_x", 0.0)
     self.declare_parameter("silo_radius", 0.0)
-    self.declare_parameter("silo_height", 0.0)
-    self.declare_parameter("plank_height", 0.0)
-    self.declare_parameter("silo_stand_height", 0.0)
     self.declare_parameter("team_color", "blue")
     self.declare_parameter("translation", [0.0]*3)  # camera translation
     self.declare_parameter("ypr", [0.0]*3)  # camera orientation
@@ -51,16 +51,12 @@ class SiloMatching(Node):
     tf_base2cam[:3, 3] = self.cam_translation
     tf_base2cam[:3, :3] = cam_orientation.as_matrix()
     self.tf_cam2base = np.linalg.inv(tf_base2cam)
-    self.silos_x = self.get_parameter("silos_x").get_parameter_value().double_array_value
-    # added some offset
-    self.silo_radius = self.get_parameter("silo_radius").get_parameter_value().double_value + 0.05
-    self.silo_height = self.get_parameter("silo_height").get_parameter_value().double_value    
-    self.plank_height = self.get_parameter("plank_height").get_parameter_value().double_value
-    self.silo_stand_height = self.get_parameter("silo_stand_height").get_parameter_value().double_value
-    camera_matrix = np.array(self.get_parameter("k").get_parameter_value().double_array_value).reshape(3, 3)
-    self.inv_camera_matrix = np.linalg.inv(camera_matrix)
 
-    self.silos_y_limits_map = self.get_silos_y_limits_map()
+    self.silos_y = self.get_parameter("silos_y").get_parameter_value().double_array_value
+    self.silo_z_min = self.get_parameter("silo_z_min").get_parameter_value().double_value 
+    self.silo_z_max = self.get_parameter("silo_z_max").get_parameter_value().double_value 
+    self.silo_x = self.get_parameter("silo_x").get_parameter_value().double_value 
+    self.silo_radius = self.get_parameter("silo_radius").get_parameter_value().double_value
 
     self.get_logger().info(f"Silo matching node started.")
 
