@@ -42,7 +42,7 @@ def generate_launch_description():
     parameters=[{'team_color': team_color}],
   )
 
-  state_estimation_node_cmd= Node(
+  silo_matching_node_cmd= Node(
     package='silo',
     executable='silo_matching_node',
     name='silo_matching_node',
@@ -53,5 +53,6 @@ def generate_launch_description():
   
   ld.add_action(team_color_cmd)
   ld.add_action(state_estimation_node_cmd)
+  ld.add_action(silo_matching_node_cmd)
 
   return ld
