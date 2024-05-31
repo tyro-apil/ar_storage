@@ -22,7 +22,7 @@ class StateEstimation(Node):
     
     self.silos_state_publisher = self.create_publisher(
       SiloArray,
-      "silo_state",
+      "silo_state_img",
       10
     )
     self.detections_subscriber = self.create_subscription(
@@ -77,7 +77,7 @@ class StateEstimation(Node):
 
     # stringify the state of silos
     state_repr = self.stringify_state(state)
-    silos_state_msg = self.get_silo_state_msg(state_repr, silo_bboxes_xywh)
+    silos_state_msg = self.get_silo_state_msg(state_repr, silo_bboxes_xyxy)
 
     # update state with strings for each silo
     self.update_state(state_repr)
@@ -128,13 +128,13 @@ class StateEstimation(Node):
       log += f"Silo{i+1}: {silo} | "
     self.get_logger().info(log)
 
-  def get_silo_state_msg(self, silos_state, silo_bboxes_xywh):
+  def get_silo_state_msg(self, silos_state, silo_bboxes_xyxy):
     silo_state_msg = SiloArray()
     for i, state in enumerate(silos_state):
       silo_msg = Silo()
       silo_msg.index = i+1
       silo_msg.state = state
-      silo_msg.xywh.extend(silo_bboxes_xywh[i])
+      silo_msg.xyxy.extend(silo_bboxes_xyxy[i])
       silo_state_msg.silos.append(silo_msg)
     return silo_state_msg
 
