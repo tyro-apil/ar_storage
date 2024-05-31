@@ -134,7 +134,10 @@ class StateEstimation(Node):
       silo_msg = Silo()
       silo_msg.index = i+1
       silo_msg.state = state
-      silo_msg.xyxy.extend(silo_bboxes_xyxy[i])
+      silo_msg.xyxy[0] = (silo_bboxes_xyxy[i][0])
+      silo_msg.xyxy[1] = (silo_bboxes_xyxy[i][1])
+      silo_msg.xyxy[2] = (silo_bboxes_xyxy[i][2])
+      silo_msg.xyxy[3] = (silo_bboxes_xyxy[i][3])
       silo_state_msg.silos.append(silo_msg)
     return silo_state_msg
 
