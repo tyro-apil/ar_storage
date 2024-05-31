@@ -3,6 +3,7 @@ from rclpy.node import Node
 
 from silo_msgs.msg import Silo, SiloArray
 from nav_msgs.msg import Odometry
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from math import cos
@@ -28,7 +29,7 @@ class SiloMatching(Node):
     )
     self.silos_state_subscriber = self.create_subscription(
       SiloArray,
-      "silo_state",
+      "silo_state_image",
       self.silo_state_callback,
       10
     )
@@ -44,6 +45,7 @@ class SiloMatching(Node):
     self.translation_map2base = None
     self.quaternion_map2base = None
     self.tf_base2map = None
+
     self.cam_translation = self.get_parameter("translation").get_parameter_value().double_array_value
     self.cam_ypr = self.get_parameter("ypr").get_parameter_value().double_array_value
     cam_orientation = R.from_euler("ZYX", self.cam_ypr, degrees=True)
@@ -58,70 +60,80 @@ class SiloMatching(Node):
     self.silo_x = self.get_parameter("silo_x").get_parameter_value().double_value 
     self.silo_radius = self.get_parameter("silo_radius").get_parameter_value().double_value
 
+    self.camera_matrix = np.array(self.get_parameter("k").get_parameter_value().double_array_value).reshape(3, 3)
+    self.silos_roi_map = self.get_silos_map_coordinates()
+    self.silos_roi_pixel = None
     self.get_logger().info(f"Silo matching node started.")
-
-  def get_silos_y_limits_map(self):
-    y_limits = []
-    gap = 0.720
-    line = 0.030
-    silo_1_center = -(gap + line)*2
-    silo_1_limits = {
-      "min": silo_1_center - self.silo_radius,
-      "max": silo_1_center + self.silo_radius
-    }
-    silo_2_center = -(gap + line)*1
-    silo_2_limits = {
-      "min": silo_2_center - self.silo_radius,
-      "max": silo_2_center + self.silo_radius
-    }
-    silo_3_center = (gap + line)*0
-    silo_3_limits = {
-      "min": silo_3_center - self.silo_radius,
-      "max": silo_3_center + self.silo_radius
-    }
-    silo_4_center = (gap + line)*1
-    silo_4_limits = {
-      "min": silo_4_center - self.silo_radius,
-      "max": silo_4_center + self.silo_radius
-    }
-    silo_5_center = (gap + line)*2
-    silo_5_limits = {
-      "min": silo_5_center - self.silo_radius,
-      "max": silo_5_center + self.silo_radius
-    }
-    y_limits.append(silo_1_limits)
-    y_limits.append(silo_2_limits)
-    y_limits.append(silo_3_limits)
-    y_limits.append(silo_4_limits)
-    y_limits.append(silo_5_limits)
-    return y_limits
+  
 
   def silo_state_callback(self, silos_state_msg: SiloArray):
-    # start only if base2map transform is available
     if self.tf_base2map is None:
+      self.get_logger().warn("Base link pose not received yet")
       return
-    
-    silos_state_map_msg = SiloArray()
-    # iterate through detected silos and assign absolute index to them
+    # Transform coordinates for each silo in pixel-coordinates
+    self.silos_roi_pixel = self.get_silos_pixel_coordinates()
+
+    silos_state_map = SiloArray()
+    # Assign absolute index to each silo based on IoU with silo regions
     for i, silo in enumerate(silos_state_msg.silos):
       silo_map = silo
-      silo_xywh = silo.xywh[0], silo.xywh[1], silo.xywh[2], silo.xywh[3]
-      silo_absolute_index = self.get_silo_absolute_index(silo_xywh[:2])
-      silo_map.index = silo_absolute_index
-      silos_state_map_msg.silos.append(silo_map)
+      for j, silo_projected in enumerate(self.silos_roi_pixel):
+        iou = self.calculate_iou(silo.xyxy, silo_projected["bbox"])
+        if iou > 0.5:
+          silo_map.index = j
+          break
+        if j == len(self.silos_roi_pixel) - 1:
+          self.get_logger().warn(f"Silo-{i+1} not found in the map")
+          silo_map.index = -1
+      silos_state_map.silos.append(silo_map)
+    
 
-    # publish new state of silos with absolute index
-    self.silos_state_map_publisher.publish(silos_state_map_msg)
+  def get_silos_map_coordinates(self):
+    silos_roi_map = []
+    for i, y in enumerate(self.silos_y):
+      silo_info = {}
+      top_left = (self.silo_x, y + self.silo_radius, self.silo_z_max)
+      bottom_right = (self.silo_x, y - self.silo_radius, self.silo_z_min)
+      silo_info["index"] = i+1
+      silo_info["roi"] = (top_left, bottom_right)
+      silos_roi_map.append(silo_info)
+    return silos_roi_map
 
-  def get_silo_absolute_index(self, silo_center):
-    silo_center_cam = self.pixel2cam(silo_center)
-    silo_center_base = self.cam2base(silo_center_cam)
-    silo_center_map = self.base2map(silo_center_base)
-    for i, y_limits in enumerate(self.silos_y_limits_map):
-      if y_limits["min"] <= silo_center_map[1] <= y_limits["max"]:
-        return i+1
-    self.get_logger().warn(f"Silo center {silo_center_map} is not in any silo")
-    return -1
+  def get_silos_pixel_coordinates(self):
+    pixel_coordinates = []
+    for i, silo in enumerate(self.silos_roi_map):
+      silo_info = {}
+      top_left_base = self.map2base(silo["roi"][0])
+      bottom_right_base = self.map2base(silo["roi"][1])
+      
+      top_left_cam = self.base2cam(top_left_base)
+      bottom_right_cam = self.base2cam(bottom_right_base)
+      
+      top_left_pixel = self.cam2pixel(top_left_cam)
+      bottom_right_pixel = self.cam2pixel(bottom_right_cam)
+
+      silo_info["index"] = i+1
+      silo_info["bbox"] = top_left_pixel + bottom_right_pixel
+      
+      pixel_coordinates.append(silo_info)
+    return pixel_coordinates
+
+  def calculate_iou(bbox1, bbox2):
+    x_left = max(bbox1[0], bbox2[0])
+    y_top = max(bbox1[1], bbox2[1])
+    x_right = min(bbox1[2], bbox2[2])
+    y_bottom = min(bbox1[3], bbox2[3])
+    
+    if x_right < x_left or y_bottom < y_top:
+        return 0.0
+
+    intersection_area = (x_right - x_left) * (y_bottom - y_top)
+    bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
+    bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
+    union_area = bbox1_area + bbox2_area - intersection_area
+    
+    iou = intersection_area / union_area
+    return iou
 
   def baselink_pose_callback(self, pose_msg: Odometry):
     self.translation_map2base = np.zeros(3)
@@ -138,47 +150,28 @@ class SiloMatching(Node):
     tf_map2base = np.eye(4)
     tf_map2base[:3,:3] = R.from_quat(self.quaternion_map2base).as_matrix()
     tf_map2base[:3, 3] = self.translation_map2base
-
     self.tf_base2map = np.linalg.inv(tf_map2base)
 
-  def pixel2cam(self, pixel_coordinates):
-    pixel_coordinates.append(1.0)
-    pixel_coordinates_np = np.array(pixel_coordinates).reshape((-1,1))
-    cam_coordinates_normalized = self.inv_camera_matrix @ pixel_coordinates_np
-    depth = self.get_depth_coordinate()
-    cam_coordinates = depth * cam_coordinates_normalized
-    return cam_coordinates.reshape(-1)
-  
-  def cam2base(self, cam_coordinates):
-    cam_coordinates.append(1.0)
-    cam_coordinates_homogeneous = np.array(cam_coordinates).reshape((-1,1))
-    base_coordinates_homogeneous = self.tf_cam2base @ cam_coordinates_homogeneous
+  def map2base(self, map_coordinates):
+    map_coordinates.append(1.0)
+    map_coordinates_homogeneous = np.array(map_coordinates).reshape((-1,1))
+    base_coordinates_homogeneous = self.tf_base2map @ map_coordinates_homogeneous
     base_coordinates = base_coordinates_homogeneous / base_coordinates_homogeneous[-1]
-    return base_coordinates[:-1].reshape(-1)
+    return base_coordinates[:-1].reshape(-1).tolist()
   
-  def base2map(self, base_coordinates):
+  def base2cam(self, base_coordinates):
     base_coordinates.append(1.0)
     base_coordinates_homogeneous = np.array(base_coordinates).reshape((-1,1))
-    map_coordinates_homogeneous = self.tf_base2map @ base_coordinates_homogeneous
-    map_coordinates = map_coordinates_homogeneous / map_coordinates_homogeneous[-1]
-    return map_coordinates[:-1].reshape(-1)
+    cam_coordinates_homogeneous = self.tf_cam2base @ base_coordinates_homogeneous
+    cam_coordinates = cam_coordinates_homogeneous / cam_coordinates_homogeneous[-1]
+    return cam_coordinates[:-1].reshape(-1).tolist()
   
-  def get_depth_coordinate(self):
-    map2silo = -(0.539+1+0.7+0.7+1.225)
-    x_depth = map2silo + self.cam_translation[0] + self.translation_map2base[0]
-    ypr = R.from_quat(self.quaternion_map2base).as_euler("ZYX")
-    try:
-      depth_cam = abs(x_depth / cos(ypr[0]))
-    except:
-      self.get_logger().warn("Division by zero")
-      return 0.0
-    return depth_cam
+  def cam2pixel(self, cam_coordinates):
+    cam_coordinates = np.array(cam_coordinates).reshape((-1,1))
+    pixel_coordinates_homogeneous = self.camera_matrix @ cam_coordinates
+    pixel_coordinates = pixel_coordinates_homogeneous / pixel_coordinates_homogeneous[-1]
+    return pixel_coordinates[:-1].reshape(-1).tolist()
 
-  # def display_state(self, silos_state_map):
-  #   log = ""
-  #   for i, silo in enumerate(self.state):
-  #     log += f"Silo{i+1}: {silo} | "
-  #   self.get_logger().info(log)
 
 def main(args=None):
   rclpy.init(args=args)
