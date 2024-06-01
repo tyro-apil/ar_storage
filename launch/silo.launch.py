@@ -31,12 +31,12 @@ def generate_launch_description():
     output='screen',
     parameters=[v4l2_camera_params],
   )
-  cam_driver = GroupAction(
-    actions=[
-      PushRosNamespace(namespace),
-      cam_driver,
-    ]
-  )
+  # cam_driver = GroupAction(
+  #   actions=[
+  #     PushRosNamespace(namespace),
+  #     cam_driver,
+  #   ]
+  # )
   
   yolov8_bringup = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
@@ -49,24 +49,24 @@ def generate_launch_description():
       'tracker': tracker_yaml_path
     }.items()
     )
-  yolov8_bringup = GroupAction(
-    actions=[
-      PushRosNamespace(namespace),
-      yolov8_bringup,
-    ]
-   )
+  # yolov8_bringup = GroupAction(
+  #   actions=[
+  #     PushRosNamespace(namespace),
+  #     yolov8_bringup,
+  #   ]
+  #  )
   
   transforms = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
       get_package_share_directory('silo'), 'launch'),
       '/transforms.launch.py'])
     )
-  transforms = GroupAction(
-    actions=[
-      PushRosNamespace(namespace),
-      transforms,
-    ]
-  )
+  # transforms = GroupAction(
+  #   actions=[
+  #     PushRosNamespace(namespace),
+  #     transforms,
+  #   ]
+  # )
 
   state_estimation = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
@@ -74,12 +74,12 @@ def generate_launch_description():
       '/state_estimation.launch.py']),
       launch_arguments={'team_color': team_color}.items()
     )
-  state_estimation = GroupAction(
-    actions=[
-      PushRosNamespace(namespace),
-      state_estimation,
-    ]
-  )
+  # state_estimation = GroupAction(
+  #   actions=[
+  #     PushRosNamespace(namespace),
+  #     state_estimation,
+  #   ]
+  # )
   
 
   return LaunchDescription([
