@@ -3,10 +3,14 @@ from rclpy.node import Node
 
 from silo_msgs.msg import Silo, SiloArray
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Image
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from math import cos
+import cv2
+from cv_bridge import CvBridge
+import message_filters
 
 class SiloMatching(Node):
   def __init__(self):
@@ -22,6 +26,11 @@ class SiloMatching(Node):
     self.declare_parameter("ypr", [0.0]*3)  # camera orientation
     self.declare_parameter("k", [0.0]*9)  # camera matrix
 
+    self.debug_img_publisher = self.create_publisher(
+      Image,
+      "debug_image",
+      10
+    )
     self.silos_state_map_publisher = self.create_publisher(
       SiloArray,
       "silo_state_map",
@@ -42,6 +51,14 @@ class SiloMatching(Node):
     )
     self.baselink_pose_subscriber
 
+    raw_img_sub = message_filters.Subscriber(self, Image, "image_raw", qos_profile=10)  #subscriber to raw depth image message
+    silos_state_subscriber = message_filters.Subscriber(self, SiloArray, "silo_state_image", qos_profile=10)  #subscriber to detections message
+
+    # synchronise callback of two independent subscriptions
+    self._synchronizer = message_filters.ApproximateTimeSynchronizer((silos_state_subscriber, raw_img_sub), 10, 0.03, True)
+    self._synchronizer.registerCallback(self.silo_state_callback)
+
+    self.cv_bridge = CvBridge()
     self.translation_map2base = None
     self.quaternion_map2base = None
     self.tf_base2map = None
@@ -66,27 +83,36 @@ class SiloMatching(Node):
     self.get_logger().info(f"Silo matching node started.")
   
 
-  def silo_state_callback(self, silos_state_msg: SiloArray):
+  def silo_state_callback(self, silos_state_msg: SiloArray, img_msg: Image):
     if self.tf_base2map is None:
       self.get_logger().warn("Base link pose not received yet")
       return
+    
+    img = self.cv_bridge.imgmsg_to_cv2(img_msg, "bgr8")
+    annotated_img = img.copy()
+
     # Transform coordinates for each silo in pixel-coordinates
     self.silos_roi_pixel = self.get_silos_pixel_coordinates()
+    annotated_img = self.draw_silos_map(annotated_img)
 
     silos_state_map = SiloArray()
     # Assign absolute index to each silo based on IoU with silo regions
     for i, silo in enumerate(silos_state_msg.silos):
       silo_map = silo
       for j, silo_projected in enumerate(self.silos_roi_pixel):
-        iou = self.calculate_iou(silo.xyxy, silo_projected["bbox"])
-        if iou > 0.5:
+        iou, intersection = self.calculate_iou(silo.xyxy, silo_projected["bbox"])
+        if iou != 0:
           silo_map.index = j
+          annotated_img = self.draw_iou(annotated_img, intersection, iou)
           break
         if j == len(self.silos_roi_pixel) - 1:
           self.get_logger().warn(f"Silo-{i+1} not found in the map")
           silo_map.index = -1
       silos_state_map.silos.append(silo_map)
-    
+
+    annotated_img = self.draw_silos_detected(annotated_img, silos_state_map.silos)
+    self.silos_state_map_publisher.publish(silos_state_map)
+    self.debug_img_publisher.publish(self.cv_bridge.cv2_to_imgmsg(annotated_img, "bgr8"))
 
   def get_silos_map_coordinates(self):
     silos_roi_map = []
@@ -133,7 +159,7 @@ class SiloMatching(Node):
     union_area = bbox1_area + bbox2_area - intersection_area
     
     iou = intersection_area / union_area
-    return iou
+    return iou, [x_left, y_top, x_right, y_bottom]
 
   def baselink_pose_callback(self, pose_msg: Odometry):
     self.translation_map2base = np.zeros(3)
@@ -171,7 +197,34 @@ class SiloMatching(Node):
     pixel_coordinates_homogeneous = self.camera_matrix @ cam_coordinates
     pixel_coordinates = pixel_coordinates_homogeneous / pixel_coordinates_homogeneous[-1]
     return pixel_coordinates[:-1].reshape(-1).tolist()
+  
+  def draw_silos_map(self, img):
+    color = (0, 255, 0)
+    for silo in self.silos_roi_pixel:
+      top_left = (int(silo["bbox"][0]), int(silo["bbox"][1]))
+      bottom_right = (int(silo["bbox"][2]), int(silo["bbox"][3]))
+      cv2.rectangle(img, top_left, bottom_right, color, 2)
+      cv2.putText(img, f"{silo['index']}", (top_left[0]+5, top_left[1]+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    return img
+  
+  def draw_silos_detected(self, img, silos):
+    color = (255, 0, 255)
+    for silo in silos:
+      top_left = (int(silo.xyxy[0]), int(silo.xyxy[1]))
+      bottom_right = (int(silo.xyxy[2]), int(silo.xyxy[3]))
+      cv2.rectangle(img, top_left, bottom_right, color, 2)
+      cv2.putText(img, f"{silo.index}", (top_left[0]+5, top_left[1]+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    return img
 
+  def draw_iou(self, img, bbox, iou):
+    alpha = 0.5
+    overlay = img.copy()
+    cv2.rectangle(overlay, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0,0,255), -1)
+
+    # Blend the overlay with the image
+    cv2.addWeighted(overlay, alpha, img, 1-alpha, 0, img)
+    cv2.putText(img, f"{iou:.2f}", (bbox[0]+5, bbox[1]+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    return img
 
 def main(args=None):
   rclpy.init(args=args)
