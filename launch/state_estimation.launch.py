@@ -28,6 +28,24 @@ def generate_launch_description():
     'silo.yaml'
   )
 
+  namespace = LaunchConfiguration("namespace")
+  namespace_cmd = DeclareLaunchArgument(
+      "namespace",
+      default_value="",
+      description="Name of the namespace")
+  
+  pose_topic = LaunchConfiguration("pose_topic")
+  pose_topic_cmd = DeclareLaunchArgument(
+      "pose_topic",
+      default_value="/odometry/filtered",
+      description="Name of the pose topic of map2base transform")
+  
+  tracking_topic = LaunchConfiguration("tracking_topic")
+  tracking_topic_cmd = DeclareLaunchArgument(
+      "tracking_topic",
+      default_value="yolo/tracking",
+      description="Name of the tracking topic")
+
   team_color = LaunchConfiguration('team_color', default='blue')
   team_color_cmd = DeclareLaunchArgument(
     'team_color',
@@ -37,13 +55,19 @@ def generate_launch_description():
 
   state_estimation_node_cmd= Node(
     package='silo',
+    namespace=namespace,
     executable='state_estimation_node',
     name='state_estimation_node',
     parameters=[{'team_color': team_color}],
+    remappings=[
+      ('yolo/tracking', tracking_topic),
+      ('/odometry/filtered', pose_topic)
+    ]
   )
 
   silo_matching_node_cmd= Node(
     package='silo',
+    namespace=namespace,
     executable='silo_matching_node',
     name='silo_matching_node',
     parameters=[camera_info_config, base2cam_config, silo_config],
@@ -51,8 +75,12 @@ def generate_launch_description():
   
   ld = LaunchDescription()
   
+  ld.add_action(namespace_cmd)
+  ld.add_action(pose_topic_cmd)
+  ld.add_action(tracking_topic_cmd)
   ld.add_action(team_color_cmd)
+
   ld.add_action(state_estimation_node_cmd)
-  ld.add_action(silo_matching_node_cmd)
+  # ld.add_action(silo_matching_node_cmd)
 
   return ld

@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
-    silos_y: [-1.5, -0.75, 0.0, 0.75, 1.5]
+    silos_x: [1.5, 0.75, 0.0, -0.75, -1.5]
     silo_z_min: 0.10
     silo_z_max: 0.525
-    silo_x: -4.289
+    silo_y: -4.289
     silo_radius: 0.125

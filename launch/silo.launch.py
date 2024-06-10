@@ -12,11 +12,13 @@ from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument
 
 def generate_launch_description():
-  namespace = 'silo'
-  input_image_topic = 'image_raw'
-  model = 'o_blunder.pt'
-  tracker_yaml_path = '/home/apil/main_ws/src/yolov8_ros/yolov8_ros/config/custom_tracker.yaml'
+  namespace = '/silo'
   team_color = 'blue'
+  input_image_topic = 'image_raw'
+  tracking_topic = 'yolo/tracking'
+  model = 'o_blunder.pt'
+  tracker = 'custom_tracker.yaml'
+  baselink_pose_topic = '/odometry/filtered'
 
   v4l2_camera_params = os.path.join(
     get_package_share_directory('silo'),
@@ -26,61 +28,45 @@ def generate_launch_description():
 
   cam_driver = Node(
     package='v4l2_camera',
+    namespace=namespace,
     executable='v4l2_camera_node',
     name='v4l2_camera',
     output='screen',
     parameters=[v4l2_camera_params],
   )
-  # cam_driver = GroupAction(
-  #   actions=[
-  #     PushRosNamespace(namespace),
-  #     cam_driver,
-  #   ]
-  # )
   
   yolov8_bringup = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
       get_package_share_directory('yolov8_bringup'), 'launch'),
       '/yolov8.launch.py']),
     launch_arguments={
-      'namespace': '',                    # By default, the namespace is set to 'yolo'
-      'input_image_topic': input_image_topic,
-      'model': model,
-      'tracker': tracker_yaml_path
+      'namespace': namespace+'/yolo',                    # By default, the namespace is set to 'yolo'
+      'input_image_topic': namespace+'/'+input_image_topic,
+      'model': os.path.join(get_package_share_directory('yolov8_ros'), 'models', f'{model}'),
+      'tracker': os.path.join(get_package_share_directory('yolov8_ros'), 'config', f'{tracker}'),
     }.items()
     )
-  # yolov8_bringup = GroupAction(
-  #   actions=[
-  #     PushRosNamespace(namespace),
-  #     yolov8_bringup,
-  #   ]
-  #  )
   
   transforms = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
       get_package_share_directory('silo'), 'launch'),
-      '/transforms.launch.py'])
+      '/transforms.launch.py']),
+    launch_arguments={
+      'namespace': namespace,
+    }.items()
     )
-  # transforms = GroupAction(
-  #   actions=[
-  #     PushRosNamespace(namespace),
-  #     transforms,
-  #   ]
-  # )
 
   state_estimation = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
       get_package_share_directory('silo'), 'launch'),
       '/state_estimation.launch.py']),
-      launch_arguments={'team_color': team_color}.items()
-    )
-  # state_estimation = GroupAction(
-  #   actions=[
-  #     PushRosNamespace(namespace),
-  #     state_estimation,
-  #   ]
-  # )
-  
+    launch_arguments={
+      'team_color': team_color,
+      'namespace': namespace,
+      'pose_topic': baselink_pose_topic,
+      'tracking_topic': namespace+'/'+tracking_topic
+    }.items()
+    )  
 
   return LaunchDescription([
     cam_driver,
