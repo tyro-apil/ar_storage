@@ -4,6 +4,10 @@ from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSHistoryPolicy
+from rclpy.qos import QoSDurabilityPolicy
+from rclpy.qos import QoSReliabilityPolicy
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -14,48 +18,52 @@ import message_filters
 
 class SiloMatching(Node):
   def __init__(self):
-    super().__init__('silo_match')
+    super().__init__('silo_matching_node')
     self.declare_parameter("team_color", "blue")
-    self.declare_parameter("silos_y", [0.0]*5)
+    self.declare_parameter("silos_x", [0.0]*5)
     self.declare_parameter("silo_z_min", 0.0)
     self.declare_parameter("silo_z_max", 0.0)
-    self.declare_parameter("silo_x", 0.0)
+    self.declare_parameter("silo_y", 0.0)
     self.declare_parameter("silo_radius", 0.0)
-    self.declare_parameter("team_color", "blue")
     self.declare_parameter("translation", [0.0]*3)  # camera translation
     self.declare_parameter("ypr", [0.0]*3)  # camera orientation
     self.declare_parameter("k", [0.0]*9)  # camera matrix
 
+    self.declare_parameter("image_reliability", QoSReliabilityPolicy.BEST_EFFORT)
+    image_qos_profile = QoSProfile(
+      reliability=self.get_parameter(
+        "image_reliability").get_parameter_value().integer_value,
+      history=QoSHistoryPolicy.KEEP_LAST,
+      durability=QoSDurabilityPolicy.VOLATILE,
+      depth=1
+    )
+
+    odometry_qos_profile = QoSProfile(depth= 10)
+    odometry_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
+
     self.debug_img_publisher = self.create_publisher(
       Image,
-      "debug_image",
+      "dbg_img",
       10
     )
     self.silos_state_map_publisher = self.create_publisher(
       SiloArray,
-      "silo_state_map",
+      "state_map",
       10
     )
-    self.silos_state_subscriber = self.create_subscription(
-      SiloArray,
-      "silo_state_image",
-      self.silo_state_callback,
-      10
-    )
-    self.silos_state_subscriber
     self.baselink_pose_subscriber = self.create_subscription(
       Odometry,
-      "odometry/filtered",
+      "/odometry/filtered",
       self.baselink_pose_callback,
-      10
+      qos_profile=odometry_qos_profile
     )
     self.baselink_pose_subscriber
 
-    raw_img_sub = message_filters.Subscriber(self, Image, "image_raw", qos_profile=10)  #subscriber to raw depth image message
-    silos_state_subscriber = message_filters.Subscriber(self, SiloArray, "silo_state_image", qos_profile=10)  #subscriber to detections message
+    raw_img_sub = message_filters.Subscriber(self, Image, "image_raw", qos_profile=image_qos_profile)  #subscriber to raw depth image message
+    silos_state_subscriber = message_filters.Subscriber(self, SiloArray, "state_image", qos_profile=10)  #subscriber to detections message
 
     # synchronise callback of two independent subscriptions
-    self._synchronizer = message_filters.ApproximateTimeSynchronizer((silos_state_subscriber, raw_img_sub), 10, 0.03, True)
+    self._synchronizer = message_filters.ApproximateTimeSynchronizer((raw_img_sub, silos_state_subscriber), 10, 1.0)
     self._synchronizer.registerCallback(self.silo_state_callback)
 
     self.cv_bridge = CvBridge()
@@ -71,19 +79,22 @@ class SiloMatching(Node):
     tf_base2cam[:3, :3] = cam_orientation.as_matrix()
     self.tf_cam2base = np.linalg.inv(tf_base2cam)
 
-    self.silos_y = self.get_parameter("silos_y").get_parameter_value().double_array_value
+    self.silos_x = self.get_parameter("silos_x").get_parameter_value().double_array_value
     self.silo_z_min = self.get_parameter("silo_z_min").get_parameter_value().double_value 
     self.silo_z_max = self.get_parameter("silo_z_max").get_parameter_value().double_value 
-    self.silo_x = self.get_parameter("silo_x").get_parameter_value().double_value 
+    self.silo_y = self.get_parameter("silo_y").get_parameter_value().double_value 
     self.silo_radius = self.get_parameter("silo_radius").get_parameter_value().double_value
 
     self.camera_matrix = np.array(self.get_parameter("k").get_parameter_value().double_array_value).reshape(3, 3)
     self.silos_roi_map = self.get_silos_map_coordinates()
     self.silos_roi_pixel = None
+    # breakpoint()
     self.get_logger().info(f"Silo matching node started.")
   
 
-  def silo_state_callback(self, silos_state_msg: SiloArray, img_msg: Image):
+  def silo_state_callback(self, img_msg: Image, silos_state_msg: SiloArray):
+    self.get_logger().info("Received silo state and image message")
+    breakpoint()
     if self.tf_base2map is None:
       self.get_logger().warn("Base link pose not received yet")
       return
@@ -110,16 +121,16 @@ class SiloMatching(Node):
           silo_map.index = -1
       silos_state_map.silos.append(silo_map)
 
-    annotated_img = self.draw_silos_detected(annotated_img, silos_state_map.silos)
+    # annotated_img = self.draw_silos_detected(annotated_img, silos_state_map.silos)
     self.silos_state_map_publisher.publish(silos_state_map)
     self.debug_img_publisher.publish(self.cv_bridge.cv2_to_imgmsg(annotated_img, "bgr8"))
 
   def get_silos_map_coordinates(self):
     silos_roi_map = []
-    for i, y in enumerate(self.silos_y):
+    for i, y in enumerate(self.silos_x):
       silo_info = {}
-      top_left = (self.silo_x, y + self.silo_radius, self.silo_z_max)
-      bottom_right = (self.silo_x, y - self.silo_radius, self.silo_z_min)
+      top_left = (self.silo_y, y + self.silo_radius, self.silo_z_max)
+      bottom_right = (self.silo_y, y - self.silo_radius, self.silo_z_min)
       silo_info["index"] = i+1
       silo_info["roi"] = (top_left, bottom_right)
       silos_roi_map.append(silo_info)
