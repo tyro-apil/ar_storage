@@ -3,18 +3,12 @@ from rclpy.node import Node
 
 from silo_msgs.msg import Silo, SiloArray
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Image
 from rclpy.qos import QoSProfile
-from rclpy.qos import QoSHistoryPolicy
-from rclpy.qos import QoSDurabilityPolicy
 from rclpy.qos import QoSReliabilityPolicy
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from math import cos
 import cv2
-from cv_bridge import CvBridge
-import message_filters
 
 class SiloMatching(Node):
   def __init__(self):
@@ -30,22 +24,10 @@ class SiloMatching(Node):
     self.declare_parameter("k", [0.0]*9)  # camera matrix
 
     self.declare_parameter("image_reliability", QoSReliabilityPolicy.BEST_EFFORT)
-    image_qos_profile = QoSProfile(
-      reliability=self.get_parameter(
-        "image_reliability").get_parameter_value().integer_value,
-      history=QoSHistoryPolicy.KEEP_LAST,
-      durability=QoSDurabilityPolicy.VOLATILE,
-      depth=1
-    )
 
     odometry_qos_profile = QoSProfile(depth= 10)
     odometry_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
 
-    self.debug_img_publisher = self.create_publisher(
-      Image,
-      "dbg_img",
-      10
-    )
     self.silos_state_map_publisher = self.create_publisher(
       SiloArray,
       "state_map",
@@ -58,15 +40,14 @@ class SiloMatching(Node):
       qos_profile=odometry_qos_profile
     )
     self.baselink_pose_subscriber
+    self.silos_state_subscriber = self.create_subscription(
+      SiloArray,
+      "state_image",
+      self.silo_state_callback,
+      10
+    )
+    self.silos_state_subscriber
 
-    raw_img_sub = message_filters.Subscriber(self, Image, "image_raw", qos_profile=image_qos_profile)  #subscriber to raw depth image message
-    silos_state_subscriber = message_filters.Subscriber(self, SiloArray, "state_image", qos_profile=10)  #subscriber to detections message
-
-    # synchronise callback of two independent subscriptions
-    self._synchronizer = message_filters.ApproximateTimeSynchronizer((raw_img_sub, silos_state_subscriber), 10, 1.0)
-    self._synchronizer.registerCallback(self.silo_state_callback)
-
-    self.cv_bridge = CvBridge()
     self.translation_map2base = None
     self.quaternion_map2base = None
     self.tf_base2map = None
@@ -92,38 +73,35 @@ class SiloMatching(Node):
     self.get_logger().info(f"Silo matching node started.")
   
 
-  def silo_state_callback(self, img_msg: Image, silos_state_msg: SiloArray):
-    self.get_logger().info("Received silo state and image message")
-    breakpoint()
+  def silo_state_callback(self, silos_state_msg: SiloArray):
+    # breakpoint()
     if self.tf_base2map is None:
       self.get_logger().warn("Base link pose not received yet")
       return
-    
-    img = self.cv_bridge.imgmsg_to_cv2(img_msg, "bgr8")
-    annotated_img = img.copy()
 
     # Transform coordinates for each silo in pixel-coordinates
     self.silos_roi_pixel = self.get_silos_pixel_coordinates()
-    annotated_img = self.draw_silos_map(annotated_img)
 
     silos_state_map = SiloArray()
     # Assign absolute index to each silo based on IoU with silo regions
     for i, silo in enumerate(silos_state_msg.silos):
       silo_map = silo
       for j, silo_projected in enumerate(self.silos_roi_pixel):
+        # breakpoint()
         iou, intersection = self.calculate_iou(silo.xyxy, silo_projected["bbox"])
-        if iou != 0:
-          silo_map.index = j
-          annotated_img = self.draw_iou(annotated_img, intersection, iou)
-          break
+        if iou!=0.0:
+          if iou>0.5: 
+            silo_map.index = j
+            break
+          else: 
+            self.get_logger().warn(f"Silo-{i+1} has low IoU with Silo-{j+1} i.e. {iou:.2f}")
+
         if j == len(self.silos_roi_pixel) - 1:
           self.get_logger().warn(f"Silo-{i+1} not found in the map")
-          silo_map.index = -1
+          silo_map.index = 255
       silos_state_map.silos.append(silo_map)
 
-    # annotated_img = self.draw_silos_detected(annotated_img, silos_state_map.silos)
     self.silos_state_map_publisher.publish(silos_state_map)
-    self.debug_img_publisher.publish(self.cv_bridge.cv2_to_imgmsg(annotated_img, "bgr8"))
 
   def get_silos_map_coordinates(self):
     silos_roi_map = []
@@ -140,8 +118,8 @@ class SiloMatching(Node):
     pixel_coordinates = []
     for i, silo in enumerate(self.silos_roi_map):
       silo_info = {}
-      top_left_base = self.map2base(silo["roi"][0])
-      bottom_right_base = self.map2base(silo["roi"][1])
+      top_left_base = self.map2base(list(silo["roi"][0]))
+      bottom_right_base = self.map2base(list(silo["roi"][1]))
       
       top_left_cam = self.base2cam(top_left_base)
       bottom_right_cam = self.base2cam(bottom_right_base)
@@ -155,14 +133,15 @@ class SiloMatching(Node):
       pixel_coordinates.append(silo_info)
     return pixel_coordinates
 
-  def calculate_iou(bbox1, bbox2):
+  def calculate_iou(self, bbox1, bbox2):
+    # breakpoint()
     x_left = max(bbox1[0], bbox2[0])
     y_top = max(bbox1[1], bbox2[1])
     x_right = min(bbox1[2], bbox2[2])
     y_bottom = min(bbox1[3], bbox2[3])
     
     if x_right < x_left or y_bottom < y_top:
-        return 0.0
+      return 0.0, None
 
     intersection_area = (x_right - x_left) * (y_bottom - y_top)
     bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
@@ -208,6 +187,9 @@ class SiloMatching(Node):
     pixel_coordinates_homogeneous = self.camera_matrix @ cam_coordinates
     pixel_coordinates = pixel_coordinates_homogeneous / pixel_coordinates_homogeneous[-1]
     return pixel_coordinates[:-1].reshape(-1).tolist()
+  
+  def parse_bbox(self, bbox_xyxy):
+    return [bbox_xyxy[0], bbox_xyxy[1], bbox_xyxy[2], bbox_xyxy[3]]
   
   def draw_silos_map(self, img):
     color = (0, 255, 0)
