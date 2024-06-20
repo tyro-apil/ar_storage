@@ -1,36 +1,29 @@
 import rclpy
 from rclpy.node import Node
-
-from yolov8_msgs.msg import DetectionArray, BoundingBox2D
 from silo_msgs.msg import Silo, SiloArray
+from yolov8_msgs.msg import BoundingBox2D, DetectionArray
+
 
 def xywh2xyxy(xywh):
   """Converts bbox xywh format into xyxy format"""
   xyxy = []
-  xyxy.append(xywh[0]-int(xywh[2]/2))
-  xyxy.append(xywh[1]-int(xywh[3]/2))
-  xyxy.append(xywh[0]+int(xywh[2]/2))
-  xyxy.append(xywh[1]+int(xywh[3]/2))
+  xyxy.append(xywh[0] - int(xywh[2] / 2))
+  xyxy.append(xywh[1] - int(xywh[3] / 2))
+  xyxy.append(xywh[0] + int(xywh[2] / 2))
+  xyxy.append(xywh[1] + int(xywh[3] / 2))
   return xyxy
 
 
 class StateEstimation(Node):
   def __init__(self):
-    super().__init__('state_estimation')
+    super().__init__("state_estimation")
 
     self.declare_parameter("team_color", "blue")
-    
+
     self.create_timer(0.0336, self.timer_callback)
-    self.silos_state_publisher = self.create_publisher(
-      SiloArray,
-      "state_image",
-      10
-    )
+    self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
-      DetectionArray,
-      "yolo/tracking",
-      self.detections_callback,
-      10
+      DetectionArray, "yolo/tracking", self.detections_callback, 10
     )
     self.detections_subscriber
 
@@ -57,10 +50,12 @@ class StateEstimation(Node):
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
 
-    # sort silos 
-    sorted_silos = sorted(silos, key=lambda x: x.bbox.center.position.x, reverse=self.silo_order_descending)
+    # sort silos
+    sorted_silos = sorted(
+      silos, key=lambda x: x.bbox.center.position.x, reverse=self.silo_order_descending
+    )
 
-    # get region of interest of detected silos 
+    # get region of interest of detected silos
     silo_bboxes_xywh = [self.parse_bbox(silo.bbox) for silo in sorted_silos]
     silo_bboxes_xyxy = [xywh2xyxy(silo_bbox) for silo_bbox in silo_bboxes_xywh]
 
@@ -73,11 +68,13 @@ class StateEstimation(Node):
         if ball_bbox_xyxy[0] >= silo_bbox[0] and ball_bbox_xyxy[2] <= silo_bbox[2]:
           state[i].append(ball)
           break
-    
+
     # sort balls inside silo by y_coordinate
     for i in range(len(state)):
       if len(state[i]) > 3:
-        self.get_logger().warn(f"Too many balls detected in silo-{i+1} i.e. {len(state[i])} balls")
+        self.get_logger().warn(
+          f"Too many balls detected in silo-{i+1} i.e. {len(state[i])} balls"
+        )
       state[i].sort(key=lambda ball: ball.bbox.center.position.y)
 
     # stringify the state of silos
@@ -91,13 +88,15 @@ class StateEstimation(Node):
     # publish the state of silos
     self.silos_state_msg = silos_state_msg
     # self.silos_state_publisher.publish(silos_state_msg)
-  
+
   def filter_detections(self, detections):
-    silos = list(
-      filter(lambda detection: detection.class_name == "silo", detections)
-    )
+    silos = list(filter(lambda detection: detection.class_name == "silo", detections))
     balls = list(
-      filter(lambda detection: detection.class_name != "silo" and detection.class_name != "purple-ball", detections)
+      filter(
+        lambda detection: detection.class_name != "silo"
+        and detection.class_name != "purple-ball",
+        detections,
+      )
     )
     return silos, balls
 
@@ -110,10 +109,10 @@ class StateEstimation(Node):
     center_y = int(bbox_xywh.center.position.y)
     width = int(bbox_xywh.size.x)
     height = int(bbox_xywh.size.y)
-    return [center_x, center_y, width, height]  
+    return [center_x, center_y, width, height]
 
   def stringify_state(self, state):
-    state_repr = [None]*self.silos_num
+    state_repr = [None] * self.silos_num
     for i, silo in enumerate(state):
       silo_state = ""
       for ball in silo:
@@ -123,7 +122,7 @@ class StateEstimation(Node):
           silo_state += "B"
       state_repr[i] = silo_state
     return state_repr
-  
+
   def update_state(self, state_repr):
     self.state = state_repr
 
@@ -137,14 +136,15 @@ class StateEstimation(Node):
     silo_state_msg = SiloArray()
     for i, state in enumerate(silos_state):
       silo_msg = Silo()
-      silo_msg.index = i+1
+      silo_msg.index = i + 1
       silo_msg.state = state
-      silo_msg.xyxy[0] = (silo_bboxes_xyxy[i][0])
-      silo_msg.xyxy[1] = (silo_bboxes_xyxy[i][1])
-      silo_msg.xyxy[2] = (silo_bboxes_xyxy[i][2])
-      silo_msg.xyxy[3] = (silo_bboxes_xyxy[i][3])
+      silo_msg.xyxy[0] = silo_bboxes_xyxy[i][0]
+      silo_msg.xyxy[1] = silo_bboxes_xyxy[i][1]
+      silo_msg.xyxy[2] = silo_bboxes_xyxy[i][2]
+      silo_msg.xyxy[3] = silo_bboxes_xyxy[i][3]
       silo_state_msg.silos.append(silo_msg)
     return silo_state_msg
+
 
 def main(args=None):
   rclpy.init(args=args)
@@ -160,5 +160,5 @@ def main(args=None):
   rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   main()
