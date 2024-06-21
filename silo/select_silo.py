@@ -1,8 +1,11 @@
 from typing import List
 
+import numpy as np
 import rclpy
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from silo_msgs.msg import Silo, SiloArray
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from silo_msgs.msg import SiloArray
 from std_msgs.msg import Int8MultiArray
 
 """
@@ -23,6 +26,11 @@ class SiloSelection(Node):
 
     # Declare team color as parameter
     self.declare_parameter("team_color", "blue")
+    self.declare_parameter("silos_x", [0.0] * 5)
+    self.declare_parameter("silo_z_min", 0.0)
+    self.declare_parameter("silo_z_max", 0.0)
+    self.declare_parameter("silo_y", 0.0)
+    self.declare_parameter("silo_radius", 0.0)
 
     # Timer to publish two best silos
     self.create_timer(0.05, self.timer_callback)
@@ -31,6 +39,16 @@ class SiloSelection(Node):
       SiloArray, "state_map", self.state_received_callback, 10
     )
     self.state_subscriber
+
+    qos_profile = QoSProfile(depth=10)
+    qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
+    # Subscribe to base_link pose
+    self.baselink_pose_subscriber = self.create_subscription(
+      Odometry,
+      "/odometry/filtered",
+      self.baselink_pose_callback,
+      qos_profile=qos_profile,
+    )
     # Publisher of list of 2 best optimal silos
     self.best_silos_publisher = self.create_publisher(
       Int8MultiArray, "silo_numbers", 10
@@ -40,11 +58,29 @@ class SiloSelection(Node):
     self.team_color = (
       self.get_parameter("team_color").get_parameter_value().string_value
     )
+    self.silos_x = (
+      self.get_parameter("silos_x").get_parameter_value().double_array_value
+    )
+    self.silo_z_min = (
+      self.get_parameter("silo_z_min").get_parameter_value().double_value
+    )
+    self.silo_z_max = (
+      self.get_parameter("silo_z_max").get_parameter_value().double_value
+    )
+    self.silo_y = self.get_parameter("silo_y").get_parameter_value().double_value
+    self.silo_radius = (
+      self.get_parameter("silo_radius").get_parameter_value().double_value
+    )
+
+    # Get x,y of silos
+    self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+
     # Set character representations
     self.TEAM_REPR = "B"
     self.OPPONENT_REPR = "R"
     if self.team_color == "red":
       self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
+      self.silos_xy = [(-x, self.silo_y) for x in self.silos_x]
 
     # Initialize optimal silos as zero index
     self.optimal_silos: List[int] = [-1] * 2
@@ -55,11 +91,20 @@ class SiloSelection(Node):
     self.priority_list = [[] for _ in range(6)]
     self.get_logger().info(f"{node_name} node started")
 
-    # Boolean list to indicate silos state
+    # list to indicate full silos state
     self.full_silos_index = []
+
+    # baselink translation w.r.t. map
+    self.translation_map2base = None
 
   def timer_callback(self):
     self.best_silos_publisher.publish(self.silo_numbers_msg)
+
+  def baselink_pose_callback(self, pose_msg: Odometry):
+    self.translation_map2base = np.zeros(3)
+    self.translation_map2base[0] = pose_msg.pose.pose.position.x
+    self.translation_map2base[1] = pose_msg.pose.pose.position.y
+    self.translation_map2base[2] = pose_msg.pose.pose.position.z
 
   def state_received_callback(self, state_msg: SiloArray):
     self.received_msg = state_msg
@@ -71,7 +116,6 @@ class SiloSelection(Node):
     ## Iterate through priority list
     # Select nearest silo index in first non-empty list inaside priority list
     self.update_target()
-    pass
 
   def set_priority_list(self, silo_array):
     # reinitalize priority list
@@ -134,7 +178,9 @@ class SiloSelection(Node):
     return optimal_silo_index
 
   def get_distane(self, silo_index):
-    return self.received_msg.silos[silo_index].distance
+    del_x = self.silos_xy[silo_index][0] - self.translation_map2base[0]
+    del_y = self.silos_xy[silo_index][1] - self.translation_map2base[1]
+    return np.sqrt(del_x**2 + del_y**2)
 
 
 def main(args=None):
