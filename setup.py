@@ -36,7 +36,9 @@ setup(
       "base2cam_optical_tf = transforms.base2cam_optical:main",
       "state_estimation_node = silo.estimate_state:main",
       "silo_matching_node = silo.match_silo:main",
+      # Fake publisher nodes
       "fake_map2base_link_node = fake.map2base_link:main",
+      "fake_silo_state_publisher_node = fake.silo_state_map:main",
     ],
   },
 )
