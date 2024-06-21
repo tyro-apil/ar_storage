@@ -14,23 +14,23 @@ class FakeSiloStatePublisher(Node):
 
   def timer_callback(self):
     silo1 = Silo()
-    silo1.id = 1
+    silo1.index = 1
     silo1.state = self.states[0]
 
     silo2 = Silo()
-    silo2.id = 2
+    silo2.index = 2
     silo2.state = self.states[1]
 
     silo3 = Silo()
-    silo3.id = 3
+    silo3.index = 3
     silo3.state = self.states[2]
 
     silo4 = Silo()
-    silo4.id = 4
+    silo4.index = 4
     silo4.state = self.states[3]
 
     silo5 = Silo()
-    silo5.id = 5
+    silo5.index = 5
     silo5.state = self.states[4]
 
     self.silo_msg.silos = [silo1, silo2, silo3, silo4, silo5]
