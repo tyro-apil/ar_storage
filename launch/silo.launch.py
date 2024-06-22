@@ -4,7 +4,6 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -16,17 +15,17 @@ def generate_launch_description():
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
 
-  v4l2_camera_params = os.path.join(
-    get_package_share_directory("silo"), "config", "v4l2_params.yaml"
-  )
-
-  cam_driver = Node(
-    package="v4l2_camera",
-    namespace=namespace,
-    executable="v4l2_camera_node",
-    name="v4l2_camera",
-    output="screen",
-    parameters=[v4l2_camera_params],
+  cam_driver = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+      [
+        os.path.join(get_package_share_directory("silo"), "launch"),
+        "/cam_driver.launch.py",
+      ]
+    ),
+    launch_arguments={
+      "namespace": namespace,
+      "input_image_topic": input_image_topic,
+    }.items(),
   )
 
   yolov8_bringup = IncludeLaunchDescription(
