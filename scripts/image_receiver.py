@@ -28,33 +28,48 @@ class ImageReceiverNode(Node):
     self.receive_loop()
 
   def receive_loop(self):
-    try:
-      client_socket, addr = self.server_socket.accept()
-      self.get_logger().info(f"Connection from {addr}")
+    while True:
+      try:
+        client_socket, addr = self.server_socket.accept()
+        self.get_logger().info(f"Connection from {addr}")
 
-      while True:
-        # Receive image size
-        size_bytes = client_socket.recv(4)
-        size = int.from_bytes(size_bytes, byteorder="big")
+        while True:
+          # Receive image size
+          size_bytes = client_socket.recv(4)
+          if not size_bytes:
+            self.get_logger().warn("No size data received, closing connection.")
+            break
 
-        # Receive image data
-        img_data = b""
-        while len(img_data) < size:
-          chunk = client_socket.recv(size - len(img_data))
-          if not chunk:
-            raise RuntimeError("Socket connection broken")
-          img_data += chunk
+          size = int.from_bytes(size_bytes, byteorder="big")
 
-        # Decode image
-        np_arr = np.frombuffer(img_data, dtype=np.uint8)
-        cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+          # Receive image data
+          img_data = b""
+          while len(img_data) < size:
+            chunk = client_socket.recv(size - len(img_data))
+            if not chunk:
+              raise RuntimeError("Socket connection broken")
+            img_data += chunk
 
-        # Publish image as ROS message
-        ros_image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
-        self.publisher_.publish(ros_image_msg)
+          if len(img_data) != size:
+            self.get_logger().warn(
+              f"Incomplete img_data received: {len(img_data)} out of {size} bytes"
+            )
+            raise Exception("Incomplete img_data received")
 
-    except Exception as e:
-      self.get_logger().error(f"Error receiving image: {str(e)}")
+          # Decode image
+          np_arr = np.frombuffer(img_data, dtype=np.uint8)
+          cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+          if cv_image is None:
+            self.get_logger().warn("Failed to decode frame.")
+            continue
+
+          # Publish image as ROS message
+          ros_image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+          self.publisher_.publish(ros_image_msg)
+
+      except Exception as e:
+        self.get_logger().error(f"Error receiving image: {str(e)}")
 
   def destroy_node(self):
     self.server_socket.close()
