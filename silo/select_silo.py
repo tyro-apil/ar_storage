@@ -177,7 +177,7 @@ class SiloSelection(Node):
     optimal_silo_index = silo_indexes[silos_distance.index(min(silos_distance))]
     return optimal_silo_index
 
-  def get_distane(self, silo_index):
+  def get_distance(self, silo_index):
     del_x = self.silos_xy[silo_index][0] - self.translation_map2base[0]
     del_y = self.silos_xy[silo_index][1] - self.translation_map2base[1]
     return np.sqrt(del_x**2 + del_y**2)
