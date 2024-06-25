@@ -11,7 +11,7 @@ def generate_launch_description():
   team_color = "blue"
   input_image_topic = "image_raw"
   tracking_topic = "yolo/tracking"
-  model = "o_blunder.pt"
+  model = "silo_picam.pt"
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
 
