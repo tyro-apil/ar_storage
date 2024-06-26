@@ -63,6 +63,14 @@ def generate_launch_description():
     parameters=[camera_info_config, base2cam_config, silo_config],
   )
 
+  silo_selection_node_cmd = Node(
+    package="silo",
+    namespace=namespace,
+    executable="silo_selection_node",
+    name="silo_selection_node",
+    parameters=[silo_config],
+  )
+
   ld = LaunchDescription()
 
   ld.add_action(namespace_cmd)
@@ -71,6 +79,7 @@ def generate_launch_description():
   ld.add_action(team_color_cmd)
 
   ld.add_action(state_estimation_node_cmd)
+  # ld.add_action(silo_selection_node_cmd)
   # ld.add_action(silo_matching_node_cmd)
 
   return ld
