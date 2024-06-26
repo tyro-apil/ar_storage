@@ -75,7 +75,7 @@ class StateEstimation(Node):
         self.get_logger().warn(
           f"Too many balls detected in silo-{i+1} i.e. {len(state[i])} balls"
         )
-      state[i].sort(key=lambda ball: ball.bbox.center.position.y)
+      state[i].sort(key=lambda ball: ball.bbox.center.position.y, reverse=True)
 
     # stringify the state of silos
     state_repr = self.stringify_state(state)
