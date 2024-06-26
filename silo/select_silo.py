@@ -50,7 +50,7 @@ class SiloSelection(Node):
       qos_profile=qos_profile,
     )
     # Publisher of list of 2 best optimal silos
-    self.best_silos_publisher = self.create_publisher(
+    self.optimal_silos_publisher = self.create_publisher(
       Int8MultiArray, "silo_numbers", 10
     )
 
@@ -98,7 +98,13 @@ class SiloSelection(Node):
     self.translation_map2base = None
 
   def timer_callback(self):
-    self.best_silos_publisher.publish(self.silo_numbers_msg)
+    self.publish_silo_numbers_msg()
+    # return
+
+  def publish_silo_numbers_msg(self):
+    self.optimal_silos_publisher.publish(self.silo_numbers_msg)
+    self.get_logger().info(f"Optimal silos: {self.optimal_silos}")
+    return
 
   def baselink_pose_callback(self, pose_msg: Odometry):
     self.translation_map2base = np.zeros(3)
@@ -107,6 +113,10 @@ class SiloSelection(Node):
     self.translation_map2base[2] = pose_msg.pose.pose.position.z
 
   def state_received_callback(self, state_msg: SiloArray):
+    if self.translation_map2base is None:
+      self.get_logger().info("Waiting for baselink pose")
+      return
+
     self.received_msg = state_msg
 
     ## Assign priority to each silo
@@ -116,6 +126,8 @@ class SiloSelection(Node):
     ## Iterate through priority list
     # Select nearest silo index in first non-empty list inaside priority list
     self.update_target()
+
+    self.publish_silo_numbers_msg()
 
   def set_priority_list(self, silo_array):
     # reinitalize priority list
@@ -167,8 +179,6 @@ class SiloSelection(Node):
     self.silo_numbers_msg.data = self.optimal_silos
 
   def get_optimal_silo_index(self, silo_indexes):
-    optimal_silo_index = -1
-
     ## Iterate over silo_indexes
     ## Select silo_index with minimum distance w.r.t. baselink
     silos_distance: List[float] = [
@@ -178,8 +188,8 @@ class SiloSelection(Node):
     return optimal_silo_index
 
   def get_distance(self, silo_index):
-    del_x = self.silos_xy[silo_index][0] - self.translation_map2base[0]
-    del_y = self.silos_xy[silo_index][1] - self.translation_map2base[1]
+    del_x = self.silos_xy[silo_index - 1][0] - self.translation_map2base[0]
+    del_y = self.silos_xy[silo_index - 1][1] - self.translation_map2base[1]
     return np.sqrt(del_x**2 + del_y**2)
 
 
