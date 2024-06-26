@@ -3,9 +3,9 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 
 
-class TransformPublisher(Node):
+class OdometryPublisher(Node):
   def __init__(self):
-    super().__init__("transform_publisher")
+    super().__init__("odom_publisher")
     self.publisher_ = self.create_publisher(Odometry, "/odometry/filtered", 10)
     self.timer_ = self.create_timer(1.0, self.publish_transform)
 
@@ -27,7 +27,7 @@ class TransformPublisher(Node):
 
 def main(args=None):
   rclpy.init(args=args)
-  transform_publisher = TransformPublisher()
+  transform_publisher = OdometryPublisher()
   rclpy.spin(transform_publisher)
   transform_publisher.destroy_node()
   rclpy.shutdown()
