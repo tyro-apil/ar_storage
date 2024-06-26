@@ -83,7 +83,7 @@ class StateEstimation(Node):
 
     # update state with strings for each silo
     self.update_state(state_repr)
-    # self.display_state()
+    self.display_state()
 
     # publish the state of silos
     self.silos_state_msg = silos_state_msg
@@ -94,7 +94,7 @@ class StateEstimation(Node):
     balls = list(
       filter(
         lambda detection: detection.class_name != "silo"
-        and detection.class_name != "purple-ball",
+        and detection.class_name != "purple",
         detections,
       )
     )
@@ -116,9 +116,9 @@ class StateEstimation(Node):
     for i, silo in enumerate(state):
       silo_state = ""
       for ball in silo:
-        if ball.class_name == "red-ball":
+        if ball.class_name == "red":
           silo_state += "R"
-        elif ball.class_name == "blue-ball":
+        elif ball.class_name == "blue":
           silo_state += "B"
       state_repr[i] = silo_state
     return state_repr
