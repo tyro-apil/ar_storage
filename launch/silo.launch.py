@@ -8,7 +8,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
   namespace = "/silo"
-  team_color = "blue"
+  team_color = "red"
   input_image_topic = "image_raw"
   tracking_topic = "yolo/tracking"
   model = "silo_picam.pt"
