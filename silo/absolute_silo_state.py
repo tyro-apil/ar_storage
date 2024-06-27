@@ -37,6 +37,7 @@ class AbsoluteStateEstimation(Node):
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
+    self.display_state()
 
   def silo_state_image_callback(self, silos_detected_state_msg: SiloArray):
     ## parse state from message
@@ -124,27 +125,24 @@ class AbsoluteStateEstimation(Node):
       self.silos_absolute_state_msg.silos.append(silo_msg)
     return
 
-  def update_state(self, state_repr):
-    self.state = state_repr
-
   def display_state(self):
     log = ""
-    for i, silo_state in enumerate(self.state):
-      log += f"Silo{i+1}: {silo_state} | "
+    for silo_state in self.silos_absolute_state:
+      log += f"Silo{silo_state['index']}: {silo_state['state']} | "
     self.get_logger().info(log)
 
 
 def main(args=None):
   rclpy.init(args=args)
 
-  state_estimation_node = AbsoluteStateEstimation()
+  absolute_state_node = AbsoluteStateEstimation()
 
-  rclpy.spin(state_estimation_node)
+  rclpy.spin(absolute_state_node)
 
   # Destroy the node explicitly
   # (optional - otherwise it will be done automatically
   # when the garbage collector destroys the node object)
-  state_estimation_node.destroy_node()
+  absolute_state_node.destroy_node()
   rclpy.shutdown()
 
 
