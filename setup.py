@@ -37,6 +37,7 @@ setup(
       "state_estimation_node = silo.estimate_state:main",
       "silo_matching_node = silo.match_silo:main",
       "silo_selection_node = silo.select_silo:main",
+      "absolute_silo_state_node = silo.absolute_silo_state:main",
       "image_receiver_node = scripts.image_receiver:main",
       # Fake publisher nodes
       "fake_map2base_link_node = fake.map2base_link:main",

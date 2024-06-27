@@ -52,7 +52,16 @@ def generate_launch_description():
     executable="state_estimation_node",
     name="state_estimation_node",
     parameters=[{"team_color": team_color}],
-    remappings=[("yolo/tracking", tracking_topic), ("/odometry/filtered", pose_topic)],
+    remappings=[
+      ("yolo/tracking", tracking_topic),
+    ],
+  )
+
+  absolute_silo_state_node_cmd = Node(
+    package="silo",
+    namespace=namespace,
+    executable="absolute_silo_state_node",
+    name="absolute_silo_state_node",
   )
 
   silo_matching_node_cmd = Node(
@@ -68,6 +77,7 @@ def generate_launch_description():
     namespace=namespace,
     executable="silo_selection_node",
     name="silo_selection_node",
+    remappings=[("/odometry/filtered", pose_topic)],
     parameters=[silo_config],
   )
 
@@ -79,7 +89,8 @@ def generate_launch_description():
   ld.add_action(team_color_cmd)
 
   ld.add_action(state_estimation_node_cmd)
-  # ld.add_action(silo_selection_node_cmd)
+  ld.add_action(absolute_silo_state_node_cmd)
+  ld.add_action(silo_selection_node_cmd)
   # ld.add_action(silo_matching_node_cmd)
 
   return ld
