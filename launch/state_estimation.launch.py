@@ -10,15 +10,10 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-  camera_info_config = os.path.join(
-    get_package_share_directory("silo"), "config", "camera_info.yaml"
-  )
-
-  base2cam_config = os.path.join(
-    get_package_share_directory("silo"), "config", "base2cam.yaml"
-  )
-
   silo_config = os.path.join(get_package_share_directory("silo"), "config", "silo.yaml")
+  common_config = os.path.join(
+    get_package_share_directory("oakd"), "config", "common.yaml"
+  )
 
   namespace = LaunchConfiguration("namespace")
   namespace_cmd = DeclareLaunchArgument(
@@ -39,19 +34,12 @@ def generate_launch_description():
     description="Name of the tracking topic",
   )
 
-  team_color = LaunchConfiguration("team_color", default="blue")
-  team_color_cmd = DeclareLaunchArgument(
-    "team_color",
-    default_value="blue",
-    description="Team color of the robot (blue or red)",
-  )
-
   state_estimation_node_cmd = Node(
     package="silo",
     namespace=namespace,
     executable="state_estimation_node",
     name="state_estimation_node",
-    parameters=[{"team_color": team_color}],
+    parameters=[common_config],
     remappings=[
       ("yolo/tracking", tracking_topic),
     ],
@@ -64,12 +52,12 @@ def generate_launch_description():
     name="absolute_silo_state_node",
   )
 
-  silo_matching_node_cmd = Node(
+  silos_marker_node_cmd = Node(
     package="silo",
     namespace=namespace,
-    executable="silo_matching_node",
-    name="silo_matching_node",
-    parameters=[camera_info_config, base2cam_config, silo_config],
+    executable="silos_marker_node",
+    name="silos_marker_node",
+    parameters=[common_config, silo_config],
   )
 
   silo_selection_node_cmd = Node(
@@ -78,7 +66,7 @@ def generate_launch_description():
     executable="silo_selection_node",
     name="silo_selection_node",
     remappings=[("/odometry/filtered", pose_topic)],
-    parameters=[silo_config],
+    parameters=[silo_config, common_config],
   )
 
   ld = LaunchDescription()
@@ -90,7 +78,7 @@ def generate_launch_description():
 
   ld.add_action(state_estimation_node_cmd)
   ld.add_action(absolute_silo_state_node_cmd)
+  ld.add_action(silos_marker_node_cmd)
   ld.add_action(silo_selection_node_cmd)
-  # ld.add_action(silo_matching_node_cmd)
 
   return ld
