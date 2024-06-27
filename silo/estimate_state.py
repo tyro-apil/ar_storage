@@ -36,7 +36,7 @@ class StateEstimation(Node):
     self.state = None
     self.silos_num = None
     self.balls_num = None
-    self.get_logger().info(f"Silo state estimation node started.")
+    self.get_logger().info("Silo state estimation node started.")
 
   def timer_callback(self):
     if self.state is not None:
