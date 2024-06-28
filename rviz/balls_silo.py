@@ -54,9 +54,9 @@ class MarkerBroadcaster(Node):
     for silo in silo_state_msg.silos:
       silo_marker_array = self.create_silo_marker(silo)
 
-      marker_array.markers.extend(silo_marker_array)
+      marker_array.markers.extend(silo_marker_array.markers)
 
-    self.silos_marker_publisher.publish(self.detected_markers)
+    self.set_marker_msg(marker_array)
     return
 
   def create_silo_marker(self, silo):
