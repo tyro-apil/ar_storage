@@ -127,13 +127,9 @@ class SiloSelection(Node):
     # Select nearest silo index in first non-empty list inaside priority list
     self.update_target()
 
-    self.publish_silo_numbers_msg()
-
   def set_priority_list(self, silo_array):
     # reinitalize priority list
     self.priority_list = [[] for _ in range(6)]
-    # reinitalize full silos index
-    self.full_silos_index = []
     # update priority list
     for silo in silo_array:
       if (
