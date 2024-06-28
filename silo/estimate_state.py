@@ -29,10 +29,15 @@ class StateEstimation(Node):
 
     self.silos_state_msg = SiloArray()
     team_color = self.get_parameter("team_color").get_parameter_value().string_value
-    if team_color == "blue":
-      self.silo_order_descending = False
-    else:
-      self.silo_order_descending = True
+
+    ########################################
+    self.silo_order_descending = False
+    # if team_color == "blue":
+    #   self.silo_order_descending = False
+    # else:
+    #   self.silo_order_descending = True
+
+    ########################################
     self.state = None
     self.silos_num = None
     self.balls_num = None
@@ -83,7 +88,7 @@ class StateEstimation(Node):
 
     # update state with strings for each silo
     self.update_state(state_repr)
-    self.display_state()
+    # self.display_state()
 
     # publish the state of silos
     self.silos_state_msg = silos_state_msg
