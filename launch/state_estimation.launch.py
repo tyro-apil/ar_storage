@@ -74,7 +74,6 @@ def generate_launch_description():
   ld.add_action(namespace_cmd)
   ld.add_action(pose_topic_cmd)
   ld.add_action(tracking_topic_cmd)
-  ld.add_action(team_color_cmd)
 
   ld.add_action(state_estimation_node_cmd)
   ld.add_action(absolute_silo_state_node_cmd)
