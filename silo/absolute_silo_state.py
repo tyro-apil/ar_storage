@@ -66,7 +66,7 @@ class AbsoluteStateEstimation(Node):
     if not self.is_consistent_with_previous_state(silos_received_state):
       self.get_logger().warn("Received state is inconsistent with previous state")
       self.get_logger().warn(f"Received state: {silos_received_state}")
-      self.get_logger().warn(f"Previous state: {self.silos_absolute_state_previous}")
+      self.get_logger().warn(f"Previous state: {self.silos_absolute_state}")
       return
 
     self.set_silos_absolute_state(silos_received_state)
