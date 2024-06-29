@@ -52,21 +52,21 @@ class MarkerBroadcaster(Node):
     marker_array = MarkerArray()
 
     for silo in silo_state_msg.silos:
-      silo_marker_array = self.create_silo_marker(silo)
+      silo_marker_array = self.create_silo_markers(silo)
 
       marker_array.markers.extend(silo_marker_array.markers)
 
     self.set_marker_msg(marker_array)
     return
 
-  def create_silo_marker(self, silo):
+  def create_silo_markers(self, silo):
     silo_marker_array = MarkerArray()
+    silo_text_marker = self.create_silo_text_marker(silo.index)
+    silo_marker_array.markers.append(silo_text_marker)
 
     for i, color in enumerate(silo.state):
       marker = self.create_ball_marker(i + 1, color, silo.index)
-      silo_text_marker = self.create_silo_text_marker(silo.index)
       silo_marker_array.markers.append(marker)
-      silo_marker_array.markers.append(silo_text_marker)
 
     return silo_marker_array
 
