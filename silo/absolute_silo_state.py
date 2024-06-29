@@ -1,6 +1,3 @@
-from collections import namedtuple
-from tkinter.tix import Tree
-
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
