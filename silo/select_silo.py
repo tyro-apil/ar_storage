@@ -6,7 +6,7 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from silo_msgs.msg import SiloArray
-from std_msgs.msg import Int8MultiArray
+from std_msgs.msg import UInt8MultiArray
 
 """
 Priority List:
@@ -51,7 +51,7 @@ class SiloSelection(Node):
     )
     # Publisher of list of 2 best optimal silos
     self.optimal_silos_publisher = self.create_publisher(
-      Int8MultiArray, "silo_numbers", 10
+      UInt8MultiArray, "/silo_number", 10
     )
 
     # Get team color as object variable for silo selection
@@ -83,8 +83,8 @@ class SiloSelection(Node):
       self.silos_xy = [(-x, self.silo_y) for x in self.silos_x]
 
     # Initialize optimal silos as zero index
-    self.optimal_silos: List[int] = [-1] * 2
-    self.silo_numbers_msg = Int8MultiArray()
+    self.optimal_silos: List[int] = [0] * 2
+    self.silo_numbers_msg = UInt8MultiArray()
     self.received_msg = None
 
     # Initialize list of lists for priority
@@ -152,7 +152,7 @@ class SiloSelection(Node):
 
   def update_target(self):
     second_priority_list = self.priority_list
-    self.optimal_silos = [-1] * 2
+    self.optimal_silos = [0] * 2
 
     ## Get best option from first priority list
     for i, silos in enumerate(self.priority_list):
