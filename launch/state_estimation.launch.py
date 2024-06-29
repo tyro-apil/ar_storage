@@ -34,6 +34,12 @@ def generate_launch_description():
     description="Name of the tracking topic",
   )
 
+  silo_number_topic = LaunchConfiguration("silo_number_topic")
+  silo_number_topic_cmd = DeclareLaunchArgument(
+    "silo_number_topic",
+    default_value="/silo_number",
+  )
+
   state_estimation_node_cmd = Node(
     package="silo",
     namespace=namespace,
@@ -65,7 +71,10 @@ def generate_launch_description():
     namespace=namespace,
     executable="silo_selection_node",
     name="silo_selection_node",
-    remappings=[("/odometry/filtered", pose_topic)],
+    remappings=[
+      ("/odometry/filtered", pose_topic),
+      ("/silo_number", silo_number_topic),
+    ],
     parameters=[silo_config, common_config],
   )
 
@@ -74,6 +83,7 @@ def generate_launch_description():
   ld.add_action(namespace_cmd)
   ld.add_action(pose_topic_cmd)
   ld.add_action(tracking_topic_cmd)
+  ld.add_action(silo_number_topic_cmd)
 
   ld.add_action(state_estimation_node_cmd)
   ld.add_action(absolute_silo_state_node_cmd)

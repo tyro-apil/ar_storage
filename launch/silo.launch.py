@@ -14,6 +14,7 @@ def generate_launch_description():
   model = "picam_mount.pt"
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
+  silo_number_topic = "/silo_number"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -84,6 +85,7 @@ def generate_launch_description():
       "namespace": namespace,
       "pose_topic": baselink_pose_topic,
       "tracking_topic": namespace + "/" + tracking_topic,
+      "silo_number_topic": silo_number_topic,
     }.items(),
   )
 
