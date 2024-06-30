@@ -96,7 +96,7 @@ class AbsoluteStateEstimation(Node):
 
     # Find the state that meets the threshold
     for state_tuple, count in state_counter.items():
-      if count >= self.threshold:
+      if count >= self.__consistency_threshold:
         # Convert the tuple back to a list of dictionaries
         return [{"index": idx, "state": st} for idx, st in state_tuple]
 
