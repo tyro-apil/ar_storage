@@ -32,13 +32,13 @@ setup(
   tests_require=["pytest"],
   entry_points={
     "console_scripts": [
-      "cam_optical2cam_ros_tf = transforms.cam_optical2cam_ros:main",
-      "base2cam_optical_tf = transforms.base2cam_optical:main",
+      "cam_optical2cam_ros_tf = silo.cam_optical2cam_ros_tf:main",
+      "base2cam_optical_tf = silo.base2cam_optical_tf:main",
       "state_estimation_node = silo.estimate_state:main",
       "silo_matching_node = silo.match_silo:main",
       "silo_selection_node = silo.select_silo:main",
       "absolute_silo_state_node = silo.absolute_silo_state:main",
-      "image_receiver_node = scripts.image_receiver:main",
+      "image_receiver_node = silo.image_receiver:main",
       # Rviz visualizations
       "silos_marker_node = rviz.balls_silo:main",
       # Fake publisher nodes
