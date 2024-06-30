@@ -1,5 +1,3 @@
-from collections import defaultdict, deque
-
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
@@ -29,8 +27,8 @@ class AbsoluteStateEstimation(Node):
       for i in range(5)
     ]
     self.update_silos_absolute_state_msg()
-    self.silos_relative_state_received = deque(maxlen=10)
-    self.__consistency_threshold = 5
+    self.silos_relative_state_received = None
+    self.received_msg_consistency_counter = 0
 
     self.get_logger().info("Absolute silo state estimation node started.")
 
@@ -43,10 +41,13 @@ class AbsoluteStateEstimation(Node):
     # List of dictionaries
     silos_received_state = self.parse_state(silos_detected_state_msg.silos)
 
-    self.silos_relative_state_received.append(silos_received_state)
+    if self.silos_relative_state_received is None:
+      self.silos_relative_state_received = silos_received_state
+      return
 
-    consistent_state = self.get_consistent_state()
-    if consistent_state is None:
+    ## check for consistency in 5 frames
+    if not self.is_state_consistent_across_frames(silos_received_state):
+      # self.get_logger().warn("Messages across frames are inconsistent")
       return
 
     ## check if all 5 states are visible
@@ -80,27 +81,22 @@ class AbsoluteStateEstimation(Node):
 
     return silos_state
 
-  def add_state(self, silos_received_state):
-    # Convert list of dictionaries to a sorted tuple of tuples
-    sorted_state = tuple(
-      sorted((silo["index"], silo["state"]) for silo in silos_received_state)
-    )
-    self.silos_relative_state_received.append(sorted_state)
+  def is_state_consistent_across_frames(self, silos_received_state):
+    previous_received_state = self.silos_relative_state_received
+    self.silos_relative_state_received = silos_received_state
+    if len(silos_received_state) != len(previous_received_state):
+      self.received_msg_consistency_counter = 0
+      return False
+    for received, previous in zip(silos_received_state, previous_received_state):
+      if received["state"] != previous["state"]:
+        self.received_msg_consistency_counter = 0
+        return False
 
-  def get_consistent_state(self):
-    # Use defaultdict to count occurrences of each state
-    state_counter = defaultdict(int)
-
-    for state_tuple in self.silos_relative_state_received:
-      state_counter[state_tuple] += 1
-
-    # Find the state that meets the threshold
-    for state_tuple, count in state_counter.items():
-      if count >= self.__consistency_threshold:
-        # Convert the tuple back to a list of dictionaries
-        return [{"index": idx, "state": st} for idx, st in state_tuple]
-
-    return None
+    self.received_msg_consistency_counter += 1
+    if self.received_msg_consistency_counter == 5:
+      self.received_msg_consistency_counter = 0
+      return True
+    return False
 
   def is_consistent_with_previous_state(self, silos_received_state):
     for silo_received, silo_previous in zip(
