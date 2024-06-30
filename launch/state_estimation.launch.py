@@ -86,7 +86,7 @@ def generate_launch_description():
   ld.add_action(silo_number_topic_cmd)
 
   ld.add_action(state_estimation_node_cmd)
-  # ld.add_action(absolute_silo_state_node_cmd)
+  ld.add_action(absolute_silo_state_node_cmd)
   # ld.add_action(silos_marker_node_cmd)
   # ld.add_action(silo_selection_node_cmd)
 
