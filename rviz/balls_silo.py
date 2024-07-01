@@ -40,35 +40,35 @@ class MarkerBroadcaster(Node):
     self.silos_state_subscriber = self.create_subscription(
       SiloArray, "state_map", self.silos_state_callback, 10
     )
-    self.silos_marker_publisher = self.create_publisher(MarkerArray, "silos_rviz", 10)
-
     self.silos_state_subscriber  # prevent unused variable warning
-    self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
 
-    self.silos_marker_msg = MarkerArray()
+    self.silos_marker_publisher = self.create_publisher(MarkerArray, "silos_marker", 10)
+    self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
+
+    # if self.team_color == "red":
+    #   self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+
     self.get_logger().info("Silo balls marker node started")
 
   def silos_state_callback(self, silo_state_msg: SiloArray):
     marker_array = MarkerArray()
 
     for silo in silo_state_msg.silos:
-      silo_marker_array = self.create_silo_markers(silo)
+      silos_marker_array = self.create_silo_markers(silo)
 
-      marker_array.markers.extend(silo_marker_array.markers)
+      marker_array.markers.extend(silos_marker_array.markers)
 
-    self.set_marker_msg(marker_array)
+    self.publish_markers(marker_array)
     return
 
   def create_silo_markers(self, silo):
-    silo_marker_array = MarkerArray()
-    silo_text_marker = self.create_silo_text_marker(silo.index)
-    silo_marker_array.markers.append(silo_text_marker)
+    silos_marker_array = MarkerArray()
 
     for i, color in enumerate(silo.state):
       marker = self.create_ball_marker(i + 1, color, silo.index)
-      silo_marker_array.markers.append(marker)
+      silos_marker_array.markers.append(marker)
 
-    return silo_marker_array
+    return silos_marker_array
 
   def create_ball_marker(self, position, color, silo_number):
     marker = Marker()
@@ -84,11 +84,15 @@ class MarkerBroadcaster(Node):
 
     match position:
       case 1:
-        marker.pose.position.z = self.ball_diameter / 2
+        marker.pose.position.z = self.silo_z_max + self.ball_diameter / 2
       case 2:
-        marker.pose.position.z = self.ball_diameter / 2 + self.ball_diameter
+        marker.pose.position.z = (
+          self.silo_z_max + self.ball_diameter / 2 + self.ball_diameter
+        )
       case 3:
-        marker.pose.position.z = self.ball_diameter / 2 + 2 * self.ball_diameter
+        marker.pose.position.z = (
+          self.silo_z_max + self.ball_diameter / 2 + 2 * self.ball_diameter
+        )
 
     marker.pose.orientation.x = 0.0
     marker.pose.orientation.y = 0.0
@@ -126,7 +130,7 @@ class MarkerBroadcaster(Node):
     text_marker.header.frame_id = "map"
 
     text_marker.ns = "silo"
-    text_marker.id = int(f"{silo_number*7}")
+    text_marker.id = int(f"{-silo_number}")
     text_marker.type = Marker.TEXT_VIEW_FACING
     text_marker.action = Marker.ADD
 
@@ -151,12 +155,8 @@ class MarkerBroadcaster(Node):
     text_marker.lifetime = Duration(seconds=1.0).to_msg()
     return text_marker
 
-  def set_marker_msg(self, markers_msg):
-    self.silos_marker_msg = markers_msg
-    return
-
-  def publish_markers(self):
-    self.silos_marker_publisher.publish(self.silos_marker_msg)
+  def publish_markers(self, marker_array):
+    self.silos_marker_publisher.publish(marker_array)
     return
 
 
