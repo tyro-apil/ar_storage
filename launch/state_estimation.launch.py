@@ -20,24 +20,11 @@ def generate_launch_description():
     "namespace", default_value="", description="Name of the namespace"
   )
 
-  pose_topic = LaunchConfiguration("pose_topic")
-  pose_topic_cmd = DeclareLaunchArgument(
-    "pose_topic",
-    default_value="/odometry/filtered",
-    description="Name of the pose topic of map2base transform",
-  )
-
   tracking_topic = LaunchConfiguration("tracking_topic")
   tracking_topic_cmd = DeclareLaunchArgument(
     "tracking_topic",
     default_value="yolo/tracking",
     description="Name of the tracking topic",
-  )
-
-  silo_number_topic = LaunchConfiguration("silo_number_topic")
-  silo_number_topic_cmd = DeclareLaunchArgument(
-    "silo_number_topic",
-    default_value="/silo_number",
   )
 
   state_estimation_node_cmd = Node(
@@ -66,28 +53,13 @@ def generate_launch_description():
     parameters=[common_config, silo_config],
   )
 
-  silo_selection_node_cmd = Node(
-    package="silo",
-    namespace=namespace,
-    executable="silo_selection_node",
-    name="silo_selection_node",
-    remappings=[
-      ("/odometry/filtered", pose_topic),
-      ("/silo_number", silo_number_topic),
-    ],
-    parameters=[silo_config, common_config],
-  )
-
   ld = LaunchDescription()
 
   ld.add_action(namespace_cmd)
-  ld.add_action(pose_topic_cmd)
   ld.add_action(tracking_topic_cmd)
-  ld.add_action(silo_number_topic_cmd)
 
   ld.add_action(state_estimation_node_cmd)
   ld.add_action(absolute_silo_state_node_cmd)
   ld.add_action(silos_marker_node_cmd)
-  ld.add_action(silo_selection_node_cmd)
 
   return ld

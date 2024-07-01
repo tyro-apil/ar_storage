@@ -8,7 +8,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
   namespace = "/silo"
-  team_color = "red"
   input_image_topic = "image_raw"
   tracking_topic = "yolo/tracking"
   model = "picam_mount.pt"
@@ -81,10 +80,21 @@ def generate_launch_description():
       ]
     ),
     launch_arguments={
-      "team_color": team_color,
+      "namespace": namespace,
+      "tracking_topic": namespace + "/" + tracking_topic,
+    }.items(),
+  )
+
+  silo_goal = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+      [
+        os.path.join(get_package_share_directory("silo"), "launch"),
+        "/goal.launch.py",
+      ]
+    ),
+    launch_arguments={
       "namespace": namespace,
       "pose_topic": baselink_pose_topic,
-      "tracking_topic": namespace + "/" + tracking_topic,
       "silo_number_topic": silo_number_topic,
     }.items(),
   )
@@ -96,5 +106,6 @@ def generate_launch_description():
   ld.add_action(cam_driver)
   ld.add_action(yolov8_bringup)
   ld.add_action(state_estimation)
+  ld.add_action(silo_goal)
 
   return ld
