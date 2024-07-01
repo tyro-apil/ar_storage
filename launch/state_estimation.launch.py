@@ -14,6 +14,9 @@ def generate_launch_description():
   common_config = os.path.join(
     get_package_share_directory("oakd"), "config", "common.yaml"
   )
+  camera_info_config = os.path.join(
+    get_package_share_directory("oakd"), "config", "camera_info.yaml"
+  )
 
   namespace = LaunchConfiguration("namespace")
   namespace_cmd = DeclareLaunchArgument(
@@ -43,6 +46,7 @@ def generate_launch_description():
     namespace=namespace,
     executable="absolute_silo_state_node",
     name="absolute_silo_state_node",
+    parameters=[camera_info_config],
   )
 
   silos_marker_node_cmd = Node(
