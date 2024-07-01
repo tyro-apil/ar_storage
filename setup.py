@@ -41,6 +41,7 @@ setup(
       "image_receiver_node = silo.image_receiver:main",
       # Rviz visualizations
       "silos_marker_node = rviz.balls_silo:main",
+      "target_node = rviz.target_silo:main",
       # Fake publisher nodes
       "fake_map2base_link_node = fake.map2base_link:main",
       "fake_silo_state_publisher_node = fake.silo_state_map:main",
