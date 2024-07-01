@@ -1,13 +1,16 @@
+from os import close
+
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
+from std_msgs.msg import UInt8
 
 
 class AbsoluteStateEstimation(Node):
   def __init__(self):
     super().__init__("absolute_state_estimation")
 
-    self.declare_parameter("team_color", "blue")
+    self.declare_parameter("width", 921)
 
     self.create_timer(0.033, self.timer_callback)
     self.silos_absolute_state_publisher = self.create_publisher(
@@ -17,17 +20,19 @@ class AbsoluteStateEstimation(Node):
       SiloArray, "state_image", self.silo_state_image_callback, 10
     )
     self.silo_state_image_subscriber
+    self.align_info_subscriber = self.create_publisher(
+      UInt8, "aligned_silo", self.aligned_info_callback, 10
+    )
 
     self.silos_absolute_state_msg = SiloArray()
     self.silos_absolute_state = [
-      {
-        "index": i + 1,
-        "state": "",
-      }
-      for i in range(5)
+      {"index": i + 1, "state": "", "bbox": [None] * 4} for i in range(5)
     ]
     self.update_silos_absolute_state_msg()
     self.silos_relative_state_received = None
+    self.__aligned_silo = 0
+    self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.x_center_image = self.__image_width / 2
     self.received_msg_consistency_counter = 0
 
     self.get_logger().info("Absolute silo state estimation node started.")
@@ -35,6 +40,11 @@ class AbsoluteStateEstimation(Node):
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
     self.display_state()
+    return
+
+  def aligned_info_callback(self, aligned_silo_msg: UInt8):
+    self.__aligned_silo = aligned_silo_msg.data
+    return
 
   def silo_state_image_callback(self, silos_detected_state_msg: SiloArray):
     ## parse state from message
@@ -53,9 +63,13 @@ class AbsoluteStateEstimation(Node):
     ## check if all 5 states are visible
     # if YES, proceed
     # if NO, yet to implement...
-    if len(silos_received_state) != 5:
+    if len(silos_received_state) > 5 or len(silos_received_state) == 0:
       self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
       return
+    if self.__aligned_silo == 0:
+      return
+    if len(silos_received_state) < 5:
+      silos_received_state = self.predict_state(partial_state=silos_received_state)
 
     ## check consistency for state of each silo state
     # if additive, update state
@@ -77,6 +91,7 @@ class AbsoluteStateEstimation(Node):
       silo_state = {}
       silo_state["index"] = silo.index
       silo_state["state"] = silo.state
+      silo_state["bbox"] = silo.xyxy
       silos_state.append(silo_state)
 
     return silos_state
@@ -108,6 +123,29 @@ class AbsoluteStateEstimation(Node):
       if silo_received["state"][:prev_len] != silo_previous["state"]:
         return False
     return True
+
+  def predict_state(self, partial_state):
+    if self.__aligned_silo == 0:
+      return None
+    aligned_index_relative = self.get_relative_index_aligned_silo(partial_state)
+    predicted_state = self.silos_absolute_state
+    for silo in partial_state:
+      offset = aligned_index_relative - silo["index"]
+      predicted_state[self.__aligned_silo - offset - 1]["state"] = silo["state"]
+    return predicted_state
+
+  def get_relative_index_aligned_silo(self, partial_state):
+    closest_center_x = 1000
+    closest_index = 0
+    for silo in partial_state:
+      bbox = silo["bbox"]
+      center_x = (bbox[0] + bbox[2]) / 2
+      if abs(center_x - self.x_center_image) < abs(
+        self.x_center_image - closest_center_x
+      ):
+        closest_center_x = center_x
+        closest_index = silo["index"]
+    return closest_index
 
   def set_silos_absolute_state(self, silos_received_state):
     self.silos_absolute_state = silos_received_state
