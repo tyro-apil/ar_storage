@@ -17,6 +17,8 @@ class MarkerBroadcaster(Node):
     self.declare_parameter("silo_y", 0.0)
     self.declare_parameter("silo_radius", 0.0)
 
+    self.__height_offset = 0.2
+
     self.team_color = (
       self.get_parameter("team_color").get_parameter_value().string_value
     )
@@ -84,14 +86,22 @@ class MarkerBroadcaster(Node):
 
     match position:
       case 1:
-        marker.pose.position.z = self.silo_z_max + self.ball_diameter / 2
+        marker.pose.position.z = (
+          self.silo_z_max + self.__height_offset + self.ball_diameter / 2
+        )
       case 2:
         marker.pose.position.z = (
-          self.silo_z_max + self.ball_diameter / 2 + self.ball_diameter
+          self.silo_z_max
+          + self.__height_offset
+          + self.ball_diameter / 2
+          + self.ball_diameter
         )
       case 3:
         marker.pose.position.z = (
-          self.silo_z_max + self.ball_diameter / 2 + 2 * self.ball_diameter
+          self.silo_z_max
+          + self.__height_offset
+          + self.ball_diameter / 2
+          + 2 * self.ball_diameter
         )
 
     marker.pose.orientation.x = 0.0
