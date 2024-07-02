@@ -19,7 +19,11 @@ def generate_launch_description():
   )
 
   namespace = LaunchConfiguration("namespace")
-  namespace_cmd = DeclareLaunchArgument()
+  namespace_cmd = DeclareLaunchArgument(
+    "namespace",
+    default_value="",
+    description="Name of the namespace",
+  )
 
   tracking_topic = LaunchConfiguration("tracking_topic")
   tracking_topic_cmd = DeclareLaunchArgument(
