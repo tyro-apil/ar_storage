@@ -20,7 +20,6 @@ class StateEstimation(Node):
 
     self.declare_parameter("team_color", "blue")
 
-    self.create_timer(0.0336, self.timer_callback)
     self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
       DetectionArray, "yolo/tracking", self.detections_callback, 10
@@ -42,10 +41,6 @@ class StateEstimation(Node):
     self.silos_num = None
     self.balls_num = None
     self.get_logger().info("Silo state estimation node started.")
-
-  def timer_callback(self):
-    if self.state is not None:
-      self.silos_state_publisher.publish(self.silos_state_msg)
 
   def detections_callback(self, detections_msg: DetectionArray):
     # filter detections
@@ -92,7 +87,7 @@ class StateEstimation(Node):
 
     # publish the state of silos
     self.silos_state_msg = silos_state_msg
-    # self.silos_state_publisher.publish(silos_state_msg)
+    self.silos_state_publisher.publish(silos_state_msg)
 
   def filter_detections(self, detections):
     silos = list(filter(lambda detection: detection.class_name == "silo", detections))
