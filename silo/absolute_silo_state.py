@@ -1,5 +1,3 @@
-from os import close
-
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
