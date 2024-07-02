@@ -80,7 +80,7 @@ class SiloSelection(Node):
     self.OPPONENT_REPR = "R"
     if self.team_color == "red":
       self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
-      self.silos_xy = [(-x, self.silo_y) for x in self.silos_x]
+      self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
 
     # Initialize optimal silos as zero index
     self.optimal_silos: List[int] = [0] * 2
@@ -114,7 +114,7 @@ class SiloSelection(Node):
 
   def state_received_callback(self, state_msg: SiloArray):
     if self.translation_map2base is None:
-      self.get_logger().info("Waiting for baselink pose")
+      # self.get_logger().info("Waiting for baselink pose")
       return
 
     self.received_msg = state_msg
