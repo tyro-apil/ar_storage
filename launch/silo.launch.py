@@ -12,6 +12,7 @@ def generate_launch_description():
   tracking_topic = "yolo/tracking"
   model = "picam_mount.pt"
   tracker = "custom_tracker.yaml"
+  device = "cuda:0"
   baselink_pose_topic = "/odometry/filtered"
   silo_number_topic = "/silo_number"
   aligned_silo_topic = "/aligned_silo"
@@ -45,6 +46,7 @@ def generate_launch_description():
       "tracker": os.path.join(
         get_package_share_directory("yolov8_ros"), "config", f"{tracker}"
       ),
+      "device": device,
     }.items(),
   )
 
