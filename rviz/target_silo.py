@@ -44,7 +44,7 @@ class MarkerBroadcaster(Node):
     self.target_silo_subscriber  # prevent unused variable warning
 
     self.silos_marker_publisher = self.create_publisher(MarkerArray, "silos_marker", 10)
-    self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
+    self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
 
     # if self.team_color == "red":
     #   self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
