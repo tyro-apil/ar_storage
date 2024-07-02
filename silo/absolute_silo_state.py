@@ -18,7 +18,7 @@ class AbsoluteStateEstimation(Node):
       SiloArray, "state_image", self.silo_state_image_callback, 10
     )
     self.silo_state_image_subscriber
-    self.align_info_subscriber = self.create_publisher(
+    self.align_info_subscriber = self.create_subscription(
       UInt8, "/aligned_silo", self.aligned_info_callback, 10
     )
 
@@ -64,10 +64,10 @@ class AbsoluteStateEstimation(Node):
     if len(silos_received_state) > 5 or len(silos_received_state) == 0:
       self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
       return
-    if self.__aligned_silo == 0:
-      return
     if len(silos_received_state) < 5:
       silos_received_state = self.predict_full_state(partial_state=silos_received_state)
+      if silos_received_state is None:
+        return
 
     ## check consistency for state of each silo state
     # if additive, update state
