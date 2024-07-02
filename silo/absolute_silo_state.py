@@ -19,7 +19,7 @@ class AbsoluteStateEstimation(Node):
     )
     self.silo_state_image_subscriber
     self.align_info_subscriber = self.create_publisher(
-      UInt8, "aligned_silo", self.aligned_info_callback, 10
+      UInt8, "/aligned_silo", self.aligned_info_callback, 10
     )
 
     self.silos_absolute_state_msg = SiloArray()
@@ -67,7 +67,7 @@ class AbsoluteStateEstimation(Node):
     if self.__aligned_silo == 0:
       return
     if len(silos_received_state) < 5:
-      silos_received_state = self.predict_state(partial_state=silos_received_state)
+      silos_received_state = self.predict_full_state(partial_state=silos_received_state)
 
     ## check consistency for state of each silo state
     # if additive, update state
@@ -122,7 +122,7 @@ class AbsoluteStateEstimation(Node):
         return False
     return True
 
-  def predict_state(self, partial_state):
+  def predict_full_state(self, partial_state):
     if self.__aligned_silo == 0:
       return None
     aligned_index_relative = self.get_relative_index_aligned_silo(partial_state)
