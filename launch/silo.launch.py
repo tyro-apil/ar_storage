@@ -14,6 +14,7 @@ def generate_launch_description():
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
   silo_number_topic = "/silo_number"
+  aligned_silo_topic = "/aligned_silo"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -82,6 +83,7 @@ def generate_launch_description():
     launch_arguments={
       "namespace": namespace,
       "tracking_topic": namespace + "/" + tracking_topic,
+      "aligned_silo_topic": aligned_silo_topic,
     }.items(),
   )
 
