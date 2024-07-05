@@ -37,7 +37,7 @@ class AbsoluteStateEstimation(Node):
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
-    self.display_state()
+    # self.display_state()
     return
 
   def aligned_info_callback(self, aligned_silo_msg: UInt8):
