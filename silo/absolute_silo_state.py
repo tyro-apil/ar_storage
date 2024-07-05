@@ -69,14 +69,17 @@ class AbsoluteStateEstimation(Node):
       if silos_received_state is None:
         return
 
-    ## check consistency for state of each silo state
-    # if additive, update state
-    # if conflicts with previous state, warn and pass
-    if not self.is_consistent_with_previous_state(silos_received_state):
-      self.get_logger().warn("Received state is inconsistent with previous state")
-      self.get_logger().warn(f"Received state: {silos_received_state}")
-      self.get_logger().warn(f"Previous state: {self.silos_absolute_state}")
-      return
+    ## Get consistent state from received state
+    silos_received_state = self.compute_consistent_state(silos_received_state)
+
+    # ## check consistency for state of each silo state
+    # # if additive, update state
+    # # if conflicts with previous state, warn and pass
+    # if not self.is_consistent_with_previous_state(silos_received_state):
+    #   self.get_logger().warn("Received state is inconsistent with previous state")
+    #   self.get_logger().warn(f"Received state: {silos_received_state}")
+    #   self.get_logger().warn(f"Previous state: {self.silos_absolute_state}")
+    #   return
 
     self.set_silos_absolute_state(silos_received_state)
     self.update_silos_absolute_state_msg()
@@ -121,6 +124,11 @@ class AbsoluteStateEstimation(Node):
       if silo_received["state"][:prev_len] != silo_previous["state"]:
         return False
     return True
+
+  def compute_consistent_state(self, silos_received_state):
+    consistent_state = self.silos_absolute_state
+    for silo_received, silo_previous in zip(silos_received_state, self.silos_absolute_state):
+      if len(silo_received["state"]) < len(silo_previous["state"]):
 
   def predict_full_state(self, partial_state):
     if self.__aligned_silo == 0:
