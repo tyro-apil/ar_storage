@@ -43,7 +43,7 @@ class MarkerBroadcaster(Node):
     )
     self.target_silo_subscriber  # prevent unused variable warning
 
-    self.silos_marker_publisher = self.create_publisher(MarkerArray, "silos_marker", 10)
+    self.silos_marker_publisher = self.create_publisher(MarkerArray, "target", 10)
     self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
 
     # if self.team_color == "red":
@@ -96,7 +96,7 @@ class MarkerBroadcaster(Node):
       arrow.color.g = 0.310
       arrow.color.b = 0.988
 
-    arrow.color.a = max(0.1, 1.0 - priority * 0.3)
+    arrow.color.a = max(0.1, 1.0 - priority * 0.5)
 
     arrow.lifetime = Duration(seconds=1.0).to_msg()
     return arrow
