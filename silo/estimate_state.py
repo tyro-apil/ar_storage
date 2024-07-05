@@ -70,9 +70,9 @@ class StateEstimation(Node):
       ball_bbox_xywh = self.parse_bbox(ball.bbox)
       ball_bbox_xyxy = xywh2xyxy(ball_bbox_xywh)
       for i, silo_bbox in enumerate(silo_bboxes_xyxy):
-        if ball_bbox_xyxy[0] >= min(
+        if ball_bbox_xyxy[0] >= max(
           0, silo_bbox[0] - self.__tolerance * self.__image_width
-        ) and ball_bbox_xyxy[2] <= max(
+        ) and ball_bbox_xyxy[2] <= min(
           self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
         ):
           state[i].append(ball)
