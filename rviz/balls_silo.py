@@ -113,7 +113,7 @@ class MarkerBroadcaster(Node):
     marker.scale.y = self.ball_diameter
     marker.scale.z = self.ball_diameter
 
-    marker_rgb = {"r": 0.0, "g": 0.0, "b": 0.0, "a": 0.8}
+    marker_rgb = {"r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0}
     match color:
       ## Red ball rgb(252,0,0)
       case "R":
