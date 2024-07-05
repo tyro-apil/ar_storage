@@ -42,7 +42,7 @@ def generate_launch_description():
     namespace=namespace,
     executable="state_estimation_node",
     name="state_estimation_node",
-    parameters=[common_config],
+    parameters=[common_config, camera_info_config],
     remappings=[
       ("yolo/tracking", tracking_topic),
     ],

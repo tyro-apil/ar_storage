@@ -19,6 +19,7 @@ class StateEstimation(Node):
     super().__init__("state_estimation")
 
     self.declare_parameter("team_color", "blue")
+    self.declare_parameter("width", 921)
 
     self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
@@ -37,6 +38,10 @@ class StateEstimation(Node):
     #   self.silo_order_descending = True
 
     ########################################
+
+    self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.__tolerance = 0.05
+
     self.state = None
     self.silos_num = None
     self.balls_num = None
@@ -65,7 +70,11 @@ class StateEstimation(Node):
       ball_bbox_xywh = self.parse_bbox(ball.bbox)
       ball_bbox_xyxy = xywh2xyxy(ball_bbox_xywh)
       for i, silo_bbox in enumerate(silo_bboxes_xyxy):
-        if ball_bbox_xyxy[0] >= silo_bbox[0] and ball_bbox_xyxy[2] <= silo_bbox[2]:
+        if ball_bbox_xyxy[0] >= min(
+          0, silo_bbox[0] - self.__tolerance * self.__image_width
+        ) and ball_bbox_xyxy[2] <= max(
+          self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
+        ):
           state[i].append(ball)
           break
 
