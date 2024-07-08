@@ -72,7 +72,7 @@ class MarkerBroadcaster(Node):
     arrow.action = Marker.ADD
 
     arrow.pose.position.x = self.silos_xy[silo_number - 1][0]
-    arrow.pose.position.y = self.silos_xy[silo_number - 1][1] - 1.0
+    arrow.pose.position.y = self.silos_xy[silo_number - 1][1] + 0.75
     arrow.pose.position.z = self.silo_z_max / 2
 
     orientation = R.from_euler("ZYX", [-90.0, 0, 0], degrees=True)
@@ -87,18 +87,19 @@ class MarkerBroadcaster(Node):
     arrow.scale.y = 0.1
     arrow.scale.z = 0.1
 
-    if self.team_color == "red":
-      arrow.color.r = 0.988
-      arrow.color.g = 0.0
-      arrow.color.b = 0.0
-    elif self.team_color == "blue":
-      arrow.color.r = 0.071
-      arrow.color.g = 0.310
-      arrow.color.b = 0.988
+    match priority:
+      case 0:
+        arrow.color.r = 0.988
+        arrow.color.g = 0.0
+        arrow.color.b = 0.0
+      case 1:
+        arrow.color.r = 0.988
+        arrow.color.g = 0.988
+        arrow.color.b = 0.0
 
-    arrow.color.a = max(0.1, 1.0 - priority * 0.5)
+    arrow.color.a = 1.0
 
-    arrow.lifetime = Duration(seconds=1.0).to_msg()
+    arrow.lifetime = Duration(seconds=2.0).to_msg()
     return arrow
 
   def publish_markers(self, marker_array):
