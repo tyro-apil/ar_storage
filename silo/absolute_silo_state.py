@@ -9,6 +9,7 @@ class AbsoluteStateEstimation(Node):
     super().__init__("absolute_state_estimation")
 
     self.declare_parameter("width", 921)
+    self.declare_parameter("consistency_threshold", 5)
 
     self.create_timer(0.033, self.timer_callback)
     self.silos_absolute_state_publisher = self.create_publisher(
@@ -29,7 +30,12 @@ class AbsoluteStateEstimation(Node):
     self.update_silos_absolute_state_msg()
     self.silos_relative_state_received = None
     self.__aligned_silo = 0
+
     self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.__consistency_threshold = (
+      self.get_parameter("consistency_threshold").get_parameter_value().integer_value
+    )
+
     self.x_center_image = self.__image_width / 2
     self.received_msg_consistency_counter = 0
 
@@ -37,7 +43,7 @@ class AbsoluteStateEstimation(Node):
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
-    # self.display_state()
+    self.display_state()
     return
 
   def aligned_info_callback(self, aligned_silo_msg: UInt8):
@@ -127,8 +133,16 @@ class AbsoluteStateEstimation(Node):
 
   def compute_consistent_state(self, silos_received_state):
     consistent_state = self.silos_absolute_state
-    for silo_received, silo_previous in zip(silos_received_state, self.silos_absolute_state):
+    for silo_received, silo_previous in zip(
+      silos_received_state, self.silos_absolute_state
+    ):
       if len(silo_received["state"]) < len(silo_previous["state"]):
+        continue
+      prev_state_len = len(silo_previous["state"])
+      if not silo_received["state"][:prev_state_len] == silo_previous["state"]:
+        continue
+      consistent_state[silo_received["index"] - 1]["state"] = silo_received["state"]
+    return consistent_state
 
   def predict_full_state(self, partial_state):
     if self.__aligned_silo == 0:
@@ -170,7 +184,7 @@ class AbsoluteStateEstimation(Node):
     log = ""
     for silo_state in self.silos_absolute_state:
       log += f"Silo{silo_state['index']}: {silo_state['state']} | "
-    self.get_logger().info(log)
+    self.get_logger().debug(log)
 
 
 def main(args=None):
