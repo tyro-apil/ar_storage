@@ -2,11 +2,16 @@ from typing import List
 
 import numpy as np
 import rclpy
+from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from rclpy.time import Duration, Time
 from silo_msgs.msg import SiloArray
 from std_msgs.msg import UInt8MultiArray
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 """
 Priority List:
@@ -32,6 +37,9 @@ class SiloSelection(Node):
     self.declare_parameter("silo_y", 0.0)
     self.declare_parameter("silo_radius", 0.0)
 
+    self.tf_buffer = Buffer()
+    self.tf_listener = TransformListener(self.tf_buffer, self)
+
     # Timer to publish two best silos
     self.create_timer(0.05, self.timer_callback)
     # Subscribe state of silos w.r.t. map
@@ -42,13 +50,16 @@ class SiloSelection(Node):
 
     qos_profile = QoSProfile(depth=10)
     qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
-    # Subscribe to base_link pose
-    self.baselink_pose_subscriber = self.create_subscription(
-      Odometry,
-      "/odometry/filtered",
-      self.baselink_pose_callback,
-      qos_profile=qos_profile,
-    )
+
+    # # Subscribe to base_link pose
+    # self.baselink_pose_subscriber = self.create_subscription(
+    #   Odometry,
+    #   "/odometry/filtered",
+    #   self.baselink_pose_callback,
+    #   qos_profile=qos_profile,
+    # )
+    # self.baselink_pose_subscriber
+
     # Publisher of list of 2 best optimal silos
     self.optimal_silos_publisher = self.create_publisher(
       UInt8MultiArray, "/silo_number", 10
@@ -118,9 +129,14 @@ class SiloSelection(Node):
     self.translation_map2base[2] = pose_msg.pose.pose.position.z
 
   def state_received_callback(self, state_msg: SiloArray):
-    if self.translation_map2base is None:
-      # self.get_logger().info("Waiting for baselink pose")
-      return
+    # if self.translation_map2base is None:
+    #   # self.get_logger().info("Waiting for baselink pose")
+    #   return
+
+    tf_map2base = self.get_map2base_tf(
+      "map", "base_link", Time(seconds=0, nanoseconds=0)
+    )
+    self.set_baselink_translation(tf_map2base)
 
     self.received_msg = state_msg
 
@@ -192,6 +208,31 @@ class SiloSelection(Node):
     del_x = self.silos_xy[silo_index - 1][0] - self.translation_map2base[0]
     del_y = self.silos_xy[silo_index - 1][1] - self.translation_map2base[1]
     return np.sqrt(del_x**2 + del_y**2)
+
+  def get_map2base_tf(
+    self, from_frame: str, to_frame: str, time: Time
+  ) -> TransformStamped:
+    try:
+      t = self.tf_buffer.lookup_transform(
+        from_frame,
+        to_frame,
+        time=time,
+        timeout=Duration(seconds=0.003),
+      )
+    except TransformException as ex:
+      self.get_logger().info(f"Could not transform {from_frame} to {to_frame}: {ex}")
+      return None
+    return t
+
+  def set_baselink_translation(self, tf: TransformStamped) -> np.ndarray:
+    self.translation_map2base = np.array(
+      [
+        tf.transform.translation.x,
+        tf.transform.translation.y,
+        tf.transform.translation.z,
+      ]
+    )
+    return
 
 
 def main(args=None):
