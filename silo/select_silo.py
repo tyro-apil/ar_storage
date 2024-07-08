@@ -103,7 +103,7 @@ class SiloSelection(Node):
 
   def publish_silo_numbers_msg(self):
     self.optimal_silos_publisher.publish(self.silo_numbers_msg)
-    self.get_logger().info(f"Optimal silos: {self.optimal_silos}")
+    # self.get_logger().info(f"Optimal silos: {self.optimal_silos}")
     return
 
   def baselink_pose_callback(self, pose_msg: Odometry):
