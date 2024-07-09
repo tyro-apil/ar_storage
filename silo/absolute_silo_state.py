@@ -116,7 +116,7 @@ class AbsoluteStateEstimation(Node):
         return False
 
     self.received_msg_consistency_counter += 1
-    if self.received_msg_consistency_counter == 5:
+    if self.received_msg_consistency_counter == self.__consistency_threshold:
       self.received_msg_consistency_counter = 0
       return True
     return False
