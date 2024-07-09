@@ -15,7 +15,7 @@ def generate_launch_description():
     get_package_share_directory("oakd"), "config", "common.yaml"
   )
   camera_info_config = os.path.join(
-    get_package_share_directory("oakd"), "config", "camera_info.yaml"
+    get_package_share_directory("silo"), "config", "camera_info.yaml"
   )
 
   namespace = LaunchConfiguration("namespace")
