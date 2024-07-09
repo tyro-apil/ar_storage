@@ -43,7 +43,7 @@ class AbsoluteStateEstimation(Node):
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
-    self.display_state()
+    # self.display_state()
     return
 
   def aligned_info_callback(self, aligned_silo_msg: UInt8):
@@ -70,13 +70,14 @@ class AbsoluteStateEstimation(Node):
     if len(silos_received_state) > 5 or len(silos_received_state) == 0:
       self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
       return
+
     if len(silos_received_state) < 5:
       silos_received_state = self.predict_full_state(partial_state=silos_received_state)
       if silos_received_state is None:
         return
 
-    ## Get consistent state from received state
-    silos_received_state = self.compute_consistent_state(silos_received_state)
+      ## Get consistent state from received state
+      silos_received_state = self.compute_consistent_state(silos_received_state)
 
     # ## check consistency for state of each silo state
     # # if additive, update state
