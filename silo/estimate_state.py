@@ -1,7 +1,10 @@
+from typing import List, Tuple
+
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
-from yolov8_msgs.msg import BoundingBox2D, DetectionArray
+from sympy import Li
+from yolov8_msgs.msg import BoundingBox2D, Detection, DetectionArray
 
 
 def xywh2xyxy(xywh):
@@ -20,6 +23,7 @@ class StateEstimation(Node):
 
     self.declare_parameter("team_color", "blue")
     self.declare_parameter("width", 921)
+    self.declare_parameter("height", 518)
 
     self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
@@ -40,6 +44,9 @@ class StateEstimation(Node):
     ########################################
 
     self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.__image_height = (
+      self.get_parameter("height").get_parameter_value().integer_value
+    )
     self.__tolerance = 0.05
 
     self.state = None
@@ -49,7 +56,7 @@ class StateEstimation(Node):
 
   def detections_callback(self, detections_msg: DetectionArray):
     # filter detections
-    silos, balls = self.filter_detections(detections_msg.detections)
+    silos, balls = self.separate_detections(detections_msg.detections)
     self.silos_num = len(silos)
     self.balls_num = len(balls)
     if self.silos_num > 5:
@@ -70,10 +77,15 @@ class StateEstimation(Node):
       ball_bbox_xywh = self.parse_bbox(ball.bbox)
       ball_bbox_xyxy = xywh2xyxy(ball_bbox_xywh)
       for i, silo_bbox in enumerate(silo_bboxes_xyxy):
-        if ball_bbox_xyxy[0] >= max(
-          0, silo_bbox[0] - self.__tolerance * self.__image_width
-        ) and ball_bbox_xyxy[2] <= min(
-          self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
+        if (
+          ball_bbox_xyxy[0]
+          >= max(0, silo_bbox[0] - self.__tolerance * self.__image_width)
+          and ball_bbox_xyxy[2]
+          <= min(
+            self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
+          )
+          and ball_bbox_xyxy[1] >= max(0, int(0.75 * silo_bbox[1]))
+          and ball_bbox_xyxy[3] <= min(self.__image_height, int(1.05 * silo_bbox[3]))
         ):
           state[i].append(ball)
           break
@@ -98,7 +110,9 @@ class StateEstimation(Node):
     self.silos_state_msg = silos_state_msg
     self.silos_state_publisher.publish(silos_state_msg)
 
-  def filter_detections(self, detections):
+  def separate_detections(
+    self, detections: List[Detection]
+  ) -> Tuple[List[Detection], List[Detection]]:
     silos = list(filter(lambda detection: detection.class_name == "silo", detections))
     balls = list(
       filter(
@@ -109,7 +123,7 @@ class StateEstimation(Node):
     )
     return silos, balls
 
-  def parse_bbox(self, bbox_xywh: BoundingBox2D):
+  def parse_bbox(self, bbox_xywh: BoundingBox2D) -> List[int]:
     """! Parse bbox from BoundingBox2D msg
     @param bbox_xywh a BoundingBox2D msg in format xywh
     @return a tuple of center_x, center_y, width, height
@@ -120,7 +134,7 @@ class StateEstimation(Node):
     height = int(bbox_xywh.size.y)
     return [center_x, center_y, width, height]
 
-  def stringify_state(self, state):
+  def stringify_state(self, state) -> List[str]:
     state_repr = [None] * self.silos_num
     for i, silo in enumerate(state):
       silo_state = ""
