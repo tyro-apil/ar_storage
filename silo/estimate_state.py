@@ -84,8 +84,8 @@ class StateEstimation(Node):
           <= min(
             self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
           )
-          and ball_bbox_xyxy[1] >= max(0, int(0.75 * silo_bbox[1]))
-          and ball_bbox_xyxy[3] <= min(self.__image_height, int(1.05 * silo_bbox[3]))
+          and ball_bbox_xyxy[1] >= max(0, silo_bbox[1] - 100)
+          and ball_bbox_xyxy[3] <= min(self.__image_height, silo_bbox[3] + 10)
         ):
           state[i].append(ball)
           break
@@ -122,6 +122,9 @@ class StateEstimation(Node):
       )
     )
     return silos, balls
+
+  def filter_silos(self, silos: List[Detection]) -> List[Detection]:
+    return silos
 
   def parse_bbox(self, bbox_xywh: BoundingBox2D) -> List[int]:
     """! Parse bbox from BoundingBox2D msg
