@@ -149,16 +149,16 @@ class StateEstimation(Node):
       state_repr[i] = silo_state
     return state_repr
 
-  def update_state(self, state_repr):
+  def update_state(self, state_repr) -> None:
     self.state = state_repr
 
-  def display_state(self):
+  def display_state(self) -> None:
     log = ""
     for i, silo in enumerate(self.state):
       log += f"Silo{i+1}: {silo} | "
     self.get_logger().info(log)
 
-  def get_silo_state_msg(self, silos_state, silo_bboxes_xyxy):
+  def get_silo_state_msg(self, silos_state, silo_bboxes_xyxy) -> SiloArray:
     silo_state_msg = SiloArray()
     for i, state in enumerate(silos_state):
       silo_msg = Silo()
