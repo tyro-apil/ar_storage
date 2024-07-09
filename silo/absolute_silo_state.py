@@ -139,6 +139,11 @@ class AbsoluteStateEstimation(Node):
     ):
       if len(silo_received["state"]) < len(silo_previous["state"]):
         continue
+      if len(silo_received["state"]) > 3:
+        self._logger().warn(
+          f"Silo-{silo_received['index']} has more than 3 balls | State: {silo_received['state']}"
+        )
+        continue
       prev_state_len = len(silo_previous["state"])
       if not silo_received["state"][:prev_state_len] == silo_previous["state"]:
         continue
