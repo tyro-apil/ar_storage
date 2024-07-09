@@ -137,7 +137,11 @@ class AbsoluteStateEstimation(Node):
     for silo_received, silo_previous in zip(
       silos_received_state, self.silos_absolute_state
     ):
+      # breakpoint()
       if len(silo_received["state"]) < len(silo_previous["state"]):
+        self.get_logger().warn(
+          f"Silo-{silo_received['index']} -> Previous: {silo_previous['state']} balls | Received: {silo_received['state']}"
+        )
         continue
       if len(silo_received["state"]) > 3:
         self._logger().warn(
@@ -158,6 +162,7 @@ class AbsoluteStateEstimation(Node):
     for silo in partial_state:
       offset = aligned_index_relative - silo["index"]
       predicted_state[self.__aligned_silo - offset - 1]["state"] = silo["state"]
+    # self.display_state(predicted_state)
     return predicted_state
 
   def get_relative_index_aligned_silo(self, partial_state):
@@ -186,11 +191,11 @@ class AbsoluteStateEstimation(Node):
       self.silos_absolute_state_msg.silos.append(silo_msg)
     return
 
-  def display_state(self):
+  def display_state(self, silos_state):
     log = ""
-    for silo_state in self.silos_absolute_state:
-      log += f"Silo{silo_state['index']}: {silo_state['state']} | "
-    self.get_logger().debug(log)
+    for silo in silos_state:
+      log += f"Silo{silo['index']}: {silo['state']} | "
+    self.get_logger().info(log)
 
 
 def main(args=None):
