@@ -1,3 +1,5 @@
+import copy
+
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
@@ -105,7 +107,7 @@ class AbsoluteStateEstimation(Node):
     return silos_state
 
   def is_state_consistent_across_frames(self, silos_received_state):
-    previous_received_state = self.silos_relative_state_received
+    previous_received_state = copy.deepcopy(self.silos_relative_state_received)
     self.silos_relative_state_received = silos_received_state
     if len(silos_received_state) != len(previous_received_state):
       self.received_msg_consistency_counter = 0
@@ -133,7 +135,7 @@ class AbsoluteStateEstimation(Node):
     return True
 
   def compute_consistent_state(self, silos_received_state):
-    consistent_state = self.silos_absolute_state
+    consistent_state = copy.deepcopy(self.silos_absolute_state)
     for silo_received, silo_previous in zip(
       silos_received_state, self.silos_absolute_state
     ):
@@ -158,7 +160,7 @@ class AbsoluteStateEstimation(Node):
     if self.__aligned_silo == 0:
       return None
     aligned_index_relative = self.get_relative_index_aligned_silo(partial_state)
-    predicted_state = self.silos_absolute_state
+    predicted_state = copy.deepcopy(self.silos_absolute_state)
     for silo in partial_state:
       offset = aligned_index_relative - silo["index"]
       predicted_state[self.__aligned_silo - offset - 1]["state"] = silo["state"]
@@ -179,7 +181,7 @@ class AbsoluteStateEstimation(Node):
     return closest_index
 
   def set_silos_absolute_state(self, silos_received_state):
-    self.silos_absolute_state = silos_received_state
+    self.silos_absolute_state = copy.deepcopy(silos_received_state)
     return
 
   def update_silos_absolute_state_msg(self):
