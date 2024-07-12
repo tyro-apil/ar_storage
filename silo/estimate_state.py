@@ -55,6 +55,7 @@ class StateEstimation(Node):
     self.balls_num = len(balls)
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
+      return
 
     # sort silos
     sorted_silos = sorted(
