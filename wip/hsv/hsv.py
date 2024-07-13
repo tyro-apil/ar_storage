@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-from typing import List
+from typing import Dict, List, Tuple
 
 import cv2
+import numpy as np
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes, Results
 from ultralytics.utils.plotting import (
@@ -12,6 +13,19 @@ from ultralytics.utils.plotting import (
 
 MODELS_DIR = "/home/apil/main_ws/src/robot/models"
 MODEL_NAME = "picam_mount.pt"
+
+
+def get_match_percent(hsv_img: cv2.Mat, roi: Tuple, mask: cv2.Mat) -> float:
+  x1, y1, x2, y2 = roi
+  roi_img = hsv_img[y1:y2, x1:x2]
+  roi_mask = mask[y1:y2, x1:x2]
+
+  roi_mask = cv2.bitwise_and(roi_img, roi_img, mask=roi_mask)
+  roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_HSV2BGR)
+  roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_BGR2GRAY)
+
+  match_percent = cv2.countNonZero(roi_mask) / (roi_mask.shape[0] * roi_mask.shape[1])
+  return match_percent
 
 
 def main():
@@ -24,17 +38,19 @@ def main():
 
   red_h_low = 0
   red_h_high = 10
-  red_s_low = 50
+  red_s_low = 100
   red_s_high = 255
-  red_v_low = 100
+  red_v_low = 80
   red_v_high = 255
 
   blue_h_low = 85
   blue_h_high = 110
   blue_s_low = 50
   blue_s_high = 255
-  blue_v_low = 100
+  blue_v_low = 30
   blue_v_high = 255
+
+  threshold = 0.30
 
   red_mask = cv2.inRange(
     hsv_img, (red_h_low, red_s_low, red_v_low), (red_h_high, red_s_high, red_v_high)
@@ -44,22 +60,29 @@ def main():
     (blue_h_low, blue_s_low, blue_v_low),
     (blue_h_high, blue_s_high, blue_v_high),
   )
-  cv2.imshow("red_mask", red_mask)
-  cv2.imshow("blue_mask", blue_mask)
-  cv2.waitKey(0)
 
-  annotated_img = img.copy()
+  kernel = np.ones((5, 5), np.uint8)
 
-  # BGR to RGB conversion is performed under the hood
-  # see: https://github.com/ultralytics/ultralytics/issues/2575
+  red_mask = cv2.dilate(red_mask, kernel, iterations=2)
+  blue_mask = cv2.dilate(blue_mask, kernel, iterations=2)
+
+  combined_mask = cv2.bitwise_or(red_mask, blue_mask)
+  colored_mask = cv2.bitwise_and(img, img, mask=combined_mask)
+
+  # cv2.imshow("combined_mask", combined_mask)
+  # cv2.imshow("colored_mask", colored_mask)
+  # cv2.waitKey(0)
+
   results: List[Results] = model.predict(source=img, imgsz=(512, 928), device=0)
 
   for r in results:
     r = r.cpu().numpy()
-    # breakpoint()
     annotator = Annotator(r.orig_img)
 
     boxes: Boxes = r.boxes.cpu().numpy()
+
+    silos: List[Dict] = []
+
     for box in boxes:
       b = box.xyxy[0]  # get box coordinates in (left, top, right, bottom) format
       b = [int(i) for i in b]
@@ -70,35 +93,58 @@ def main():
         continue
 
       ## Get individual silo bboxes sliced
-      silo_img = r.orig_img[b[1] : b[3], b[0] : b[2]]
-      silo_h, silo_w, _ = silo_img.shape
-
-      # breakpoint()
+      silo_h = b[3] - b[1]
 
       ## Divide silo into three parts in Y axis
-      height_division = (int(0.24 * silo_h), int(0.62 * silo_h), int(silo_h))
+      y_divisions = [-0.10 * silo_h, 0.20 * silo_h, 0.60 * silo_h, 0.95 * silo_h]
+      y_divisions = [int(i) for i in y_divisions]
 
-      start_1 = (b[0], max(0, b[1] - 50))
-      end_1 = (b[2], b[1] + height_division[0])
-      cv2.rectangle(annotated_img, start_1, end_1, (0, 0, 255), 2)
+      roi_1 = (
+        b[0],
+        b[1] + y_divisions[2],
+        b[2],
+        b[1] + y_divisions[3],
+      )
 
-      start_2 = (b[0], b[1] + height_division[0])
-      end_2 = (b[2], b[1] + height_division[1])
-      cv2.rectangle(annotated_img, start_2, end_2, (0, 0, 255), 2)
+      roi_2 = (
+        b[0],
+        b[1] + y_divisions[1],
+        b[2],
+        b[1] + y_divisions[2],
+      )
 
-      start_3 = (b[0], b[1] + height_division[1])
-      end_3 = (b[2], b[1] + height_division[2])
-      cv2.rectangle(annotated_img, start_3, end_3, (0, 0, 255), 2)
+      roi_3 = (
+        b[0],
+        max(0, b[1] + y_divisions[0]),
+        b[2],
+        b[1] + y_divisions[1],
+      )
 
-      ## Get HSV values of each pixel in each part
+      cv2.rectangle(colored_mask, roi_1[:2], roi_1[2:], (0, 255, 0), 2)
+      cv2.rectangle(colored_mask, roi_2[:2], roi_2[2:], (0, 255, 0), 2)
+      cv2.rectangle(colored_mask, roi_3[:2], roi_3[2:], (0, 255, 0), 2)
 
-      ## if about 30% pixels have desired HSV values then name that as red or blue ball
+      rois = [roi_1, roi_2, roi_3]
+
+      state = ""
+      for roi in rois:
+        red_match = get_match_percent(hsv_img, roi, red_mask)
+        blue_match = get_match_percent(hsv_img, roi, blue_mask)
+
+        if red_match > threshold and red_match > blue_match:
+          state += "R"
+        elif blue_match > threshold and blue_match > red_match:
+          state += "B"
+
+      silo = {"bbox": b, "state": state}
+      silos.append(silo)
 
       annotator.box_label(b, model.names[int(c)])
 
+    print(silos)
     img = annotator.result()
+    cv2.imshow("colored_mask", colored_mask)
     cv2.imshow("YOLO V8 Detection", img)
-    cv2.imshow("Silos", annotated_img)
     cv2.waitKey(0)
 
   cv2.destroyAllWindows()
