@@ -186,6 +186,9 @@ def main():
       silo = {"bbox": b, "state": state}
       silos.append(silo)
 
+      sorted_silos = sorted(silos, key=lambda x: x["bbox"][0], reverse=False)
+      print(sorted_silos)
+
       # annotator.box_label(b, model.names[int(c)])
 
     # print(silos)
