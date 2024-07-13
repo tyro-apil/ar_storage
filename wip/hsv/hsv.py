@@ -15,7 +15,7 @@ MODELS_DIR = "/home/apil/main_ws/src/robot/models"
 MODEL_NAME = "picam_mount.pt"
 
 IMG_DIR = "/home/apil/stuff/silo_pics/valid_test"
-RESULTS_DIR = "/home/apil/stuff/silo_pics/debug"
+RESULTS_DIR = "/home/apil/stuff/silo_pics/dbg3"
 
 
 def get_match_percent(hsv_img: cv2.Mat, roi: Tuple, mask: cv2.Mat) -> float:
@@ -106,7 +106,7 @@ def main():
     red_mask = cv2.bitwise_or(red_mask_1, red_mask_2)
     blue_mask = cv2.bitwise_or(blue_mask_1, blue_mask_2)
 
-    kernel = np.ones((5, 5), np.uint8)
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
 
     red_mask = cv2.dilate(red_mask, kernel, iterations=2)
     blue_mask = cv2.dilate(blue_mask, kernel, iterations=2)
