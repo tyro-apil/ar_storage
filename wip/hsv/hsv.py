@@ -61,8 +61,8 @@ def main():
   blue2_h_low = 100
   blue2_h_high = 115
   blue2_s_low = 100
-  blue2_s_high = 150
-  blue2_v_low = 110
+  blue2_s_high = 230
+  blue2_v_low = 50
   blue2_v_high = 230
 
   threshold = 0.33
