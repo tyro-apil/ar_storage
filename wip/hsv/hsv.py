@@ -16,9 +16,11 @@ MODEL_NAME = "picam_mount.pt"
 
 
 def get_match_percent(hsv_img: cv2.Mat, roi: Tuple, mask: cv2.Mat) -> float:
+  hsv_img_copy = hsv_img.copy()
+  mask_copy = mask.copy()
   x1, y1, x2, y2 = roi
-  roi_img = hsv_img[y1:y2, x1:x2]
-  roi_mask = mask[y1:y2, x1:x2]
+  roi_img = hsv_img_copy[y1:y2, x1:x2]
+  roi_mask = mask_copy[y1:y2, x1:x2]
 
   roi_mask = cv2.bitwise_and(roi_img, roi_img, mask=roi_mask)
   roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_HSV2BGR)
@@ -63,8 +65,8 @@ def main():
 
   kernel = np.ones((5, 5), np.uint8)
 
-  red_mask = cv2.dilate(red_mask, kernel, iterations=2)
-  blue_mask = cv2.dilate(blue_mask, kernel, iterations=2)
+  red_mask = cv2.dilate(red_mask, kernel, iterations=3)
+  blue_mask = cv2.dilate(blue_mask, kernel, iterations=3)
 
   combined_mask = cv2.bitwise_or(red_mask, blue_mask)
   colored_mask = cv2.bitwise_and(img, img, mask=combined_mask)
@@ -94,6 +96,7 @@ def main():
 
       ## Get individual silo bboxes sliced
       silo_h = b[3] - b[1]
+      silo_w = b[2] - b[0]
 
       ## Divide silo into three parts in Y axis
       y_divisions = [-0.10 * silo_h, 0.20 * silo_h, 0.60 * silo_h, 0.95 * silo_h]
@@ -136,6 +139,15 @@ def main():
         elif blue_match > threshold and blue_match > red_match:
           state += "B"
 
+      cv2.putText(
+        colored_mask,
+        f"{state}",
+        (b[0] + int(0.1 * silo_w), b[3] - int(0.1 * silo_h)),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (0, 255, 0),
+        1,
+      )
       silo = {"bbox": b, "state": state}
       silos.append(silo)
 
