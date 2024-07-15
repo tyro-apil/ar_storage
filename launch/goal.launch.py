@@ -12,7 +12,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
   silo_config = os.path.join(get_package_share_directory("silo"), "config", "silo.yaml")
   common_config = os.path.join(
-    get_package_share_directory("oakd"), "config", "common.yaml"
+    get_package_share_directory("robot"), "config", "common.yaml"
   )
 
   namespace = LaunchConfiguration("namespace")
