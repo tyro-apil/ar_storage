@@ -87,11 +87,12 @@ class StateEstimation(Node):
 
     # sort balls inside silo by y_coordinate
     for i in range(len(state)):
+      state[i].sort(key=lambda ball: ball.bbox.center.position.y, reverse=True)
       if len(state[i]) > 3:
         self.get_logger().warn(
           f"Too many balls detected in silo-{i+1} i.e. {len(state[i])} balls"
         )
-      state[i].sort(key=lambda ball: ball.bbox.center.position.y, reverse=True)
+        state[i] = state[i][:3]
 
     # stringify the state of silos
     state_repr = self.stringify_state(state)
