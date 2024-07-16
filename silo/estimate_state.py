@@ -25,11 +25,11 @@ class StateEstimation(Node):
     team_color = self.get_parameter("team_color").get_parameter_value().string_value
 
     ########################################
-    self.silo_order_descending = False
-    # if team_color == "blue":
-    #   self.silo_order_descending = False
-    # else:
-    #   self.silo_order_descending = True
+    # self.silo_order_descending = False
+    if team_color == "blue":
+      self.silo_order_descending = False
+    else:
+      self.silo_order_descending = True
 
     ########################################
 
