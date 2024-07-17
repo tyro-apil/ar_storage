@@ -1,4 +1,5 @@
 import copy
+from enum import Enum
 from typing import List
 
 import rclpy
@@ -9,6 +10,12 @@ from silo_msgs.msg import Silo, SiloArray
 from std_msgs.msg import UInt8
 
 
+class RobotState(Enum):
+  SEARCHING_BALL = 0
+  ALIGNING = 1
+  BALL_STORED = 3
+
+
 class AbsoluteStateEstimation(Node):
   def __init__(self):
     super().__init__("absolute_state_estimation")
@@ -16,6 +23,15 @@ class AbsoluteStateEstimation(Node):
     self.declare_parameter("width", 921)
     self.declare_parameter("consistency_threshold", 5)
     self.declare_parameter("silos_state", [""] * 5)
+    self.declare_parameter("team_color", "blue")
+
+    self.team_color = (
+      self.get_parameter("team_color").get_parameter_value().string_value
+    )
+    self.TEAM_REPR = "B"
+    self.OPPONENT_REPR = "R"
+    if self.team_color == "red":
+      self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
 
     self.add_on_set_parameters_callback(self.parameters_change_callback)
     self.create_timer(0.033, self.timer_callback)
@@ -29,7 +45,20 @@ class AbsoluteStateEstimation(Node):
     self.align_info_subscriber = self.create_subscription(
       UInt8, "/aligned_silo", self.aligned_info_callback, 10
     )
+    self.robot_state_subscriber = self.create_subscription(
+      UInt8, "/robot_state", self.robot_state_callback, 10
+    )
+    self.robot_state_subscriber
+    self.received_state = 0
 
+    ## Mapping of robot state to enum
+    self.robot_state_mapping = {
+      0: RobotState.SEARCHING_BALL,
+      1: RobotState.ALIGNING,
+      3: RobotState.BALL_STORED,
+    }
+
+    self.robot_state = self.robot_state_mapping[0]
     self.silos_absolute_state_msg = SiloArray()
     self.silos_absolute_state = [
       {"index": i + 1, "state": "", "bbox": [None] * 4} for i in range(5)
@@ -57,6 +86,15 @@ class AbsoluteStateEstimation(Node):
         ]
         self.update_silos_absolute_state_msg()
     return SetParametersResult(successful=True)
+
+  def robot_state_callback(self, robot_state_msg: UInt8):
+    self.received_state = robot_state_msg.data
+    self.robot_state = self.robot_state_mapping[self.received_state]
+
+    if self.robot_state == RobotState.BALL_STORED and self.__aligned_silo != 0:
+      if len(self.silos_absolute_state[self.__aligned_silo - 1]["state"] < 2):
+        self.silos_absolute_state[self.__aligned_silo - 1]["state"] += self.TEAM_REPR
+    return
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
