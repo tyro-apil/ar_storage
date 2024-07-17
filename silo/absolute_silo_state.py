@@ -79,7 +79,10 @@ class AbsoluteStateEstimation(Node):
 
   def parameters_change_callback(self, parameters: List[Parameter]):
     for parameter in parameters:
-      if parameter.name == "silos_state":
+      if (
+        parameter.name == "silos_state"
+        and parameter.type_ == Parameter.Type.STRING_ARRAY
+      ):
         self.silos_absolute_state = [
           {"index": i + 1, "state": state, "bbox": [None] * 4}
           for i, state in enumerate(parameter.get_parameter_value().string_array_value)
