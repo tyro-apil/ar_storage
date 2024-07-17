@@ -81,7 +81,7 @@ class SiloSelection(Node):
     self.OPPONENT_REPR = "R"
     if self.team_color == "red":
       self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
-      self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+      self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
 
     # Initialize optimal silos as zero index
     self.optimal_silos: List[int] = [0] * 2
