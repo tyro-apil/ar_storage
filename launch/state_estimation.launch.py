@@ -56,7 +56,7 @@ def generate_launch_description():
     remappings=[
       ("/aligned_silo", aligned_silo_topic),
     ],
-    parameters=[camera_info_config],
+    parameters=[camera_info_config, common_config],
   )
 
   silos_marker_node_cmd = Node(
