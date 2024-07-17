@@ -15,6 +15,7 @@ def generate_launch_description():
   baselink_pose_topic = "/odometry/filtered"
   silo_number_topic = "/silo_number"
   aligned_silo_topic = "/aligned_silo"
+  game_over_topic = "/is_game_over"
   infer_on = "cuda:0"
 
   cam_driver = IncludeLaunchDescription(
@@ -98,6 +99,7 @@ def generate_launch_description():
       "namespace": namespace,
       "pose_topic": baselink_pose_topic,
       "silo_number_topic": silo_number_topic,
+      "game_over_topic": game_over_topic,
     }.items(),
   )
 

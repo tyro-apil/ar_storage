@@ -6,7 +6,7 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from silo_msgs.msg import SiloArray
-from std_msgs.msg import UInt8MultiArray
+from std_msgs.msg import Bool, UInt8MultiArray
 
 """
 Priority List:
@@ -53,6 +53,7 @@ class SiloSelection(Node):
     self.optimal_silos_publisher = self.create_publisher(
       UInt8MultiArray, "/silo_number", 10
     )
+    self.game_over_pub = self.create_publisher(Bool, "/is_game_over", 10)
 
     # Get team color as object variable for silo selection
     self.team_color = (
@@ -93,6 +94,7 @@ class SiloSelection(Node):
 
     # list to indicate full silos state
     self.full_silos_index = []
+    self.game_over_state = Bool()
 
     # baselink translation w.r.t. map
     self.translation_map2base = None
@@ -115,6 +117,11 @@ class SiloSelection(Node):
   def state_received_callback(self, state_msg: SiloArray):
     if self.translation_map2base is None:
       # self.get_logger().info("Waiting for baselink pose")
+      return
+
+    if len(self.full_silos_index) == 5:
+      self.update_game_over_state(True)
+      self.publish_game_over_state()
       return
 
     self.received_msg = state_msg
@@ -187,6 +194,15 @@ class SiloSelection(Node):
     del_x = self.silos_xy[silo_index - 1][0] - self.translation_map2base[0]
     del_y = self.silos_xy[silo_index - 1][1] - self.translation_map2base[1]
     return np.sqrt(del_x**2 + del_y**2)
+
+  def update_game_over_state(self, is_game_over: bool):
+    self.game_over_state.data = is_game_over
+    return
+
+  def publish_game_over_state(self):
+    self.game_over_pub.publish(self.game_over_state)
+    self.get_logger().info("Game Over... All silos are full")
+    return
 
 
 def main(args=None):

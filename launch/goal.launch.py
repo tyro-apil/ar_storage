@@ -33,6 +33,12 @@ def generate_launch_description():
     default_value="/silo_number",
   )
 
+  game_over_topic = LaunchConfiguration("game_over_topic")
+  game_over_topic_cmd = DeclareLaunchArgument(
+    "game_over_topic",
+    default_value="/is_game_over",
+  )
+
   silo_selection_node_cmd = Node(
     package="silo",
     namespace=namespace,
@@ -41,6 +47,7 @@ def generate_launch_description():
     remappings=[
       ("/odometry/filtered", pose_topic),
       ("/silo_number", silo_number_topic),
+      ("/is_game_over", game_over_topic),
     ],
     parameters=[silo_config, common_config],
   )
@@ -61,6 +68,7 @@ def generate_launch_description():
   ld.add_action(namespace_cmd)
   ld.add_action(pose_topic_cmd)
   ld.add_action(silo_number_topic_cmd)
+  ld.add_action(game_over_topic_cmd)
 
   ld.add_action(silo_selection_node_cmd)
   ld.add_action(target_node_cmd)
