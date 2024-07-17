@@ -1,7 +1,10 @@
 import copy
+from typing import List
 
 import rclpy
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from silo_msgs.msg import Silo, SiloArray
 from std_msgs.msg import UInt8
 
@@ -12,7 +15,9 @@ class AbsoluteStateEstimation(Node):
 
     self.declare_parameter("width", 921)
     self.declare_parameter("consistency_threshold", 5)
+    self.declare_parameter("silos_state", [""] * 5)
 
+    self.add_on_set_parameters_callback(self.parameters_change_callback)
     self.create_timer(0.033, self.timer_callback)
     self.silos_absolute_state_publisher = self.create_publisher(
       SiloArray, "state_map", 10
@@ -43,9 +48,19 @@ class AbsoluteStateEstimation(Node):
 
     self.get_logger().info("Absolute silo state estimation node started.")
 
+  def parameters_change_callback(self, parameters: List[Parameter]):
+    for parameter in parameters:
+      if parameter.name == "silos_state":
+        self.silos_absolute_state = [
+          {"index": i + 1, "state": state, "bbox": [None] * 4}
+          for i, state in enumerate(parameter.get_parameter_value().string_array_value)
+        ]
+        self.update_silos_absolute_state_msg()
+    return SetParametersResult(successful=True)
+
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
-    # self.display_state()
+    self.display_state(self.silos_absolute_state)
     return
 
   def aligned_info_callback(self, aligned_silo_msg: UInt8):
