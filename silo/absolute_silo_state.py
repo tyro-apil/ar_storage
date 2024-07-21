@@ -75,6 +75,9 @@ class AbsoluteStateEstimation(Node):
     self.x_center_image = self.__image_width / 2
     self.received_msg_consistency_counter = 0
 
+    self.known_state = None
+    self.__is_known_state_set = False
+
     self.get_logger().info("Absolute silo state estimation node started.")
 
   def parameters_change_callback(self, parameters: List[Parameter]):
@@ -87,6 +90,8 @@ class AbsoluteStateEstimation(Node):
           {"index": i + 1, "state": state, "bbox": [None] * 4}
           for i, state in enumerate(parameter.get_parameter_value().string_array_value)
         ]
+        self.known_state = copy.deepcopy(self.silos_absolute_state)
+        self.__is_known_state_set = True
         self.update_silos_absolute_state_msg()
     return SetParametersResult(successful=True)
 
@@ -134,6 +139,7 @@ class AbsoluteStateEstimation(Node):
       if silos_received_state is None:
         return
 
+    if self.__is_known_state_set or len(silos_received_state) != 5:
       ## Get consistent state from received state
       silos_received_state = self.compute_consistent_state(silos_received_state)
 
