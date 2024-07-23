@@ -93,8 +93,20 @@ class SiloSelection(Node):
     self.get_logger().info(f"{node_name} node started")
 
     # list to indicate full silos state
-    self.full_silos_index = []
+    self.full_silos_index = set()
+    self.team_captured_silos = set()
+    self.opponent_captured_silos = set()
     self.game_over_state = Bool()
+
+    # Priority order
+    self.priority_order = [
+      [self.TEAM_REPR + self.OPPONENT_REPR, self.OPPONENT_REPR + self.TEAM_REPR],
+      [self.TEAM_REPR * 2],
+      [self.OPPONENT_REPR * 2],
+      [""],
+      [self.TEAM_REPR],
+      [self.OPPONENT_REPR],
+    ]
 
     # baselink translation w.r.t. map
     self.translation_map2base = None
@@ -155,7 +167,7 @@ class SiloSelection(Node):
       elif silo.state == self.OPPONENT_REPR:
         self.priority_list[5].append(silo.index)
       else:
-        self.full_silos_index.append(silo.index)
+        self.full_silos_index.add(silo.index)
 
   def update_target(self):
     second_priority_list = self.priority_list
