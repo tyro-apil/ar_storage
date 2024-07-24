@@ -35,6 +35,7 @@ setup(
       "cam_optical2cam_ros_tf = silo.cam_optical2cam_ros_tf:main",
       "base2cam_optical_tf = silo.base2cam_optical_tf:main",
       "state_estimation_node = silo.estimate_state:main",
+      "state_estimation_node_HSV = silo.estimate_state_HSV:main",
       "silo_selection_node = silo.select_silo:main",
       "absolute_silo_state_node = silo.absolute_silo_state:main",
       "image_receiver_node = silo.image_receiver:main",

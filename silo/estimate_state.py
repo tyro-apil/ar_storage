@@ -1,17 +1,9 @@
+from typing import List, Tuple
+
 import rclpy
 from rclpy.node import Node
 from silo_msgs.msg import Silo, SiloArray
-from yolov8_msgs.msg import BoundingBox2D, DetectionArray
-
-
-def xywh2xyxy(xywh):
-  """Converts bbox xywh format into xyxy format"""
-  xyxy = []
-  xyxy.append(xywh[0] - int(xywh[2] / 2))
-  xyxy.append(xywh[1] - int(xywh[3] / 2))
-  xyxy.append(xywh[0] + int(xywh[2] / 2))
-  xyxy.append(xywh[1] + int(xywh[3] / 2))
-  return xyxy
+from yolov8_msgs.msg import BoundingBox2D, Detection, DetectionArray
 
 
 class StateEstimation(Node):
@@ -19,8 +11,10 @@ class StateEstimation(Node):
     super().__init__("state_estimation")
 
     self.declare_parameter("team_color", "blue")
+    self.declare_parameter("width", 921)
+    self.declare_parameter("height", 518)
+    self.declare_parameter("min_silo_area", 1500)
 
-    self.create_timer(0.0336, self.timer_callback)
     self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
       DetectionArray, "yolo/tracking", self.detections_callback, 10
@@ -38,22 +32,30 @@ class StateEstimation(Node):
     #   self.silo_order_descending = True
 
     ########################################
+
+    self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.__image_height = (
+      self.get_parameter("height").get_parameter_value().integer_value
+    )
+    self.__min_silo_area = (
+      self.get_parameter("min_silo_area").get_parameter_value().integer_value
+    )
+    self.__tolerance = 0.05
+
     self.state = None
     self.silos_num = None
     self.balls_num = None
     self.get_logger().info("Silo state estimation node started.")
 
-  def timer_callback(self):
-    if self.state is not None:
-      self.silos_state_publisher.publish(self.silos_state_msg)
-
   def detections_callback(self, detections_msg: DetectionArray):
     # filter detections
-    silos, balls = self.filter_detections(detections_msg.detections)
+    silos, balls = self.separate_detections(detections_msg.detections)
+    silos = self.filter_silos(silos)
     self.silos_num = len(silos)
     self.balls_num = len(balls)
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
+      return
 
     # sort silos
     sorted_silos = sorted(
@@ -62,15 +64,24 @@ class StateEstimation(Node):
 
     # get region of interest of detected silos
     silo_bboxes_xywh = [self.parse_bbox(silo.bbox) for silo in sorted_silos]
-    silo_bboxes_xyxy = [xywh2xyxy(silo_bbox) for silo_bbox in silo_bboxes_xywh]
+    silo_bboxes_xyxy = [self.xywh2xyxy(silo_bbox) for silo_bbox in silo_bboxes_xywh]
 
     state = [[] for _ in range(len(silos))]
     # iterate through detected balls and check if they are inside the silos
     for ball in balls:
       ball_bbox_xywh = self.parse_bbox(ball.bbox)
-      ball_bbox_xyxy = xywh2xyxy(ball_bbox_xywh)
+      ball_bbox_xyxy = self.xywh2xyxy(ball_bbox_xywh)
       for i, silo_bbox in enumerate(silo_bboxes_xyxy):
-        if ball_bbox_xyxy[0] >= silo_bbox[0] and ball_bbox_xyxy[2] <= silo_bbox[2]:
+        if (
+          ball_bbox_xyxy[0]
+          >= max(0, silo_bbox[0] - self.__tolerance * self.__image_width)
+          and ball_bbox_xyxy[2]
+          <= min(
+            self.__image_width, silo_bbox[2] + self.__tolerance * self.__image_width
+          )
+          and ball_bbox_xyxy[1] >= max(0, silo_bbox[1] - 100)
+          and ball_bbox_xyxy[3] <= min(self.__image_height, silo_bbox[3] + 10)
+        ):
           state[i].append(ball)
           break
 
@@ -92,9 +103,11 @@ class StateEstimation(Node):
 
     # publish the state of silos
     self.silos_state_msg = silos_state_msg
-    # self.silos_state_publisher.publish(silos_state_msg)
+    self.silos_state_publisher.publish(silos_state_msg)
 
-  def filter_detections(self, detections):
+  def separate_detections(
+    self, detections: List[Detection]
+  ) -> Tuple[List[Detection], List[Detection]]:
     silos = list(filter(lambda detection: detection.class_name == "silo", detections))
     balls = list(
       filter(
@@ -105,7 +118,16 @@ class StateEstimation(Node):
     )
     return silos, balls
 
-  def parse_bbox(self, bbox_xywh: BoundingBox2D):
+  def filter_silos(self, silos: List[Detection]) -> List[Detection]:
+    filtered_silos = []
+    for silo in silos:
+      xywh = self.parse_bbox(silo.bbox)
+      area = xywh[2] * xywh[3]
+      if area > self.__min_silo_area:
+        filtered_silos.append(silo)
+    return filtered_silos
+
+  def parse_bbox(self, bbox_xywh: BoundingBox2D) -> List[int]:
     """! Parse bbox from BoundingBox2D msg
     @param bbox_xywh a BoundingBox2D msg in format xywh
     @return a tuple of center_x, center_y, width, height
@@ -116,7 +138,16 @@ class StateEstimation(Node):
     height = int(bbox_xywh.size.y)
     return [center_x, center_y, width, height]
 
-  def stringify_state(self, state):
+  def xywh2xyxy(self, xywh: List[int]) -> List[int]:
+    """Converts bbox xywh format into xyxy format"""
+    xyxy = []
+    xyxy.append(xywh[0] - int(xywh[2] / 2))
+    xyxy.append(xywh[1] - int(xywh[3] / 2))
+    xyxy.append(xywh[0] + int(xywh[2] / 2))
+    xyxy.append(xywh[1] + int(xywh[3] / 2))
+    return xyxy
+
+  def stringify_state(self, state: List[List[Detection]]) -> List[str]:
     state_repr = [None] * self.silos_num
     for i, silo in enumerate(state):
       silo_state = ""
@@ -128,16 +159,18 @@ class StateEstimation(Node):
       state_repr[i] = silo_state
     return state_repr
 
-  def update_state(self, state_repr):
+  def update_state(self, state_repr: List[str]) -> None:
     self.state = state_repr
 
-  def display_state(self):
+  def display_state(self) -> None:
     log = ""
     for i, silo in enumerate(self.state):
       log += f"Silo{i+1}: {silo} | "
     self.get_logger().info(log)
 
-  def get_silo_state_msg(self, silos_state, silo_bboxes_xyxy):
+  def get_silo_state_msg(
+    self, silos_state: List[str], silo_bboxes_xyxy: List[List[int]]
+  ) -> SiloArray:
     silo_state_msg = SiloArray()
     for i, state in enumerate(silos_state):
       silo_msg = Silo()

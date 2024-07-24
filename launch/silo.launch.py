@@ -14,6 +14,8 @@ def generate_launch_description():
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
   silo_number_topic = "/silo_number"
+  aligned_silo_topic = "/aligned_silo"
+  infer_on = "cuda:0"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -38,12 +40,11 @@ def generate_launch_description():
     launch_arguments={
       "namespace": namespace + "/yolo",  # By default, the namespace is set to 'yolo'
       "input_image_topic": namespace + "/" + input_image_topic,
-      "model": os.path.join(
-        get_package_share_directory("yolov8_ros"), "models", f"{model}"
-      ),
+      "model": os.path.join(get_package_share_directory("robot"), "models", f"{model}"),
       "tracker": os.path.join(
-        get_package_share_directory("yolov8_ros"), "config", f"{tracker}"
+        get_package_share_directory("robot"), "config", f"{tracker}"
       ),
+      "device": infer_on,
     }.items(),
   )
 
@@ -82,6 +83,7 @@ def generate_launch_description():
     launch_arguments={
       "namespace": namespace,
       "tracking_topic": namespace + "/" + tracking_topic,
+      "aligned_silo_topic": aligned_silo_topic,
     }.items(),
   )
 

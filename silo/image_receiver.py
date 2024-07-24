@@ -7,7 +7,14 @@ import numpy as np
 import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
+from rclpy.qos import (
+  QoSDurabilityPolicy,
+  QoSHistoryPolicy,
+  QoSProfile,
+  QoSReliabilityPolicy,
+)
 from sensor_msgs.msg import Image
+from std_msgs.msg import Header
 
 PORT = 12345
 
@@ -15,7 +22,17 @@ PORT = 12345
 class ImageReceiverNode(Node):
   def __init__(self):
     super().__init__("image_receiver_node")
-    self.publisher_ = self.create_publisher(Image, "image_raw", 10)
+
+    image_qos_profile = QoSProfile(
+      reliability=QoSReliabilityPolicy.BEST_EFFORT,
+      history=QoSHistoryPolicy.KEEP_LAST,
+      durability=QoSDurabilityPolicy.VOLATILE,
+      depth=1,
+    )
+
+    self.publisher_ = self.create_publisher(
+      Image, "image_raw", qos_profile=image_qos_profile
+    )
     self.bridge = CvBridge()
 
     # Set up socket
@@ -64,8 +81,14 @@ class ImageReceiverNode(Node):
             self.get_logger().warn("Failed to decode frame.")
             continue
 
+          msg_header = Header()
+          msg_header.stamp = self.get_clock().now().to_msg()
+          msg_header.frame_id = "picam_link_optical"
+
           # Publish image as ROS message
-          ros_image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+          ros_image_msg = self.bridge.cv2_to_imgmsg(
+            cv_image, encoding="bgr8", header=msg_header
+          )
           self.publisher_.publish(ros_image_msg)
 
       except Exception as e:
