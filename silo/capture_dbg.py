@@ -46,13 +46,14 @@ class CaptureNode(Node):
         # self.get_logger().info(
         #   f"Capture is now {'enabled' if self.__enable_capture else 'disabled'}"
         # )
-    return SetParametersResult(successful=True)
+        return SetParametersResult(successful=True)
+    return SetParametersResult(successful=False)
 
   def img_received_callback(self, rect_img_msg: Image, debug_img_msg: Image):
     current_time = time.time()
     if current_time - self.last_captured_time < 1.0:
       return
-    if random.random() < 0.05 or self.enable_capture:
+    if random.random() < 0.10 or self.enable_capture:
       stamp = rect_img_msg.header.stamp
       file_name = f"{stamp.sec}_{stamp.nanosec}.jpg"
 

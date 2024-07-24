@@ -93,7 +93,8 @@ class AbsoluteStateEstimation(Node):
         self.known_state = copy.deepcopy(self.silos_absolute_state)
         self.__is_known_state_set = True
         self.update_silos_absolute_state_msg()
-    return SetParametersResult(successful=True)
+        return SetParametersResult(successful=True)
+    return SetParametersResult(successful=False)
 
   def robot_state_callback(self, robot_state_msg: UInt8):
     self.received_state = robot_state_msg.data
