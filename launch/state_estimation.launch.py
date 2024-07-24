@@ -48,6 +48,17 @@ def generate_launch_description():
     ],
   )
 
+  state_estimationHSV_node_cmd = Node(
+    package="silo",
+    namespace=namespace,
+    executable="state_estimation_node_HSV",
+    name="state_estimation_node_HSV",
+    parameters=[common_config, camera_info_config, silo_config],
+    remappings=[
+      ("yolo/tracking", tracking_topic),
+    ],
+  )
+
   absolute_silo_state_node_cmd = Node(
     package="silo",
     namespace=namespace,
@@ -73,6 +84,7 @@ def generate_launch_description():
   ld.add_action(tracking_topic_cmd)
   ld.add_action(aligned_silo_topic_cmd)
 
+  # ld.add_action(state_estimationHSV_node_cmd)
   ld.add_action(state_estimation_node_cmd)
   ld.add_action(absolute_silo_state_node_cmd)
   ld.add_action(silos_marker_node_cmd)
