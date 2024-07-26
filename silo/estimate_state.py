@@ -48,11 +48,16 @@ class StateEstimation(Node):
     self.get_logger().info("Silo state estimation node started.")
 
   def detections_callback(self, detections_msg: DetectionArray):
+    # breakpoint()
     # filter detections
     silos, balls = self.separate_detections(detections_msg.detections)
     silos = self.filter_silos(silos)
     self.silos_num = len(silos)
     self.balls_num = len(balls)
+
+    # self.get_logger().info(
+    #   f"Detected {self.silos_num} silos and {self.balls_num} balls"
+    # )
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
       return
@@ -120,6 +125,7 @@ class StateEstimation(Node):
     return silos, balls
 
   def filter_silos(self, silos: List[Detection]) -> List[Detection]:
+    return silos
     filtered_silos = []
     for silo in silos:
       xywh = self.parse_bbox(silo.bbox)
