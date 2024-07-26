@@ -11,7 +11,7 @@ def generate_launch_description():
   input_image_topic = "image_raw"
   debug_image_topic = "dbg_image"
   tracking_topic = "yolo/tracking"
-  model = "picam_mount.pt"
+  model = "silo_team_red.pt"
   tracker = "custom_tracker.yaml"
   baselink_pose_topic = "/odometry/filtered"
   silo_number_topic = "/silo_number"
