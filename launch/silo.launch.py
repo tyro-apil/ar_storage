@@ -18,6 +18,7 @@ def generate_launch_description():
   aligned_silo_topic = "/aligned_silo"
   game_over_topic = "/is_game_over"
   infer_on = "cuda:0"
+  iou = "0.25"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -47,6 +48,7 @@ def generate_launch_description():
         get_package_share_directory("robot"), "config", f"{tracker}"
       ),
       "device": infer_on,
+      "iou": iou,
     }.items(),
   )
 
