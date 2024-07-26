@@ -1,9 +1,19 @@
 import copy
+from enum import Enum
+from typing import List
 
 import rclpy
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from silo_msgs.msg import Silo, SiloArray
 from std_msgs.msg import UInt8
+
+
+class RobotState(Enum):
+  SEARCHING_BALL = 0
+  ALIGNING = 1
+  BALL_STORED = 3
 
 
 class AbsoluteStateEstimation(Node):
@@ -12,7 +22,18 @@ class AbsoluteStateEstimation(Node):
 
     self.declare_parameter("width", 921)
     self.declare_parameter("consistency_threshold", 5)
+    self.declare_parameter("silos_state", [""] * 5)
+    self.declare_parameter("team_color", "blue")
 
+    self.team_color = (
+      self.get_parameter("team_color").get_parameter_value().string_value
+    )
+    self.TEAM_REPR = "B"
+    self.OPPONENT_REPR = "R"
+    if self.team_color == "red":
+      self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
+
+    self.add_on_set_parameters_callback(self.parameters_change_callback)
     self.create_timer(0.033, self.timer_callback)
     self.silos_absolute_state_publisher = self.create_publisher(
       SiloArray, "state_map", 10
@@ -24,7 +45,20 @@ class AbsoluteStateEstimation(Node):
     self.align_info_subscriber = self.create_subscription(
       UInt8, "/aligned_silo", self.aligned_info_callback, 10
     )
+    self.robot_state_subscriber = self.create_subscription(
+      UInt8, "/robot_state", self.robot_state_callback, 10
+    )
+    self.robot_state_subscriber
+    self.received_state = 0
 
+    ## Mapping of robot state to enum
+    self.robot_state_mapping = {
+      0: RobotState.SEARCHING_BALL,
+      1: RobotState.ALIGNING,
+      3: RobotState.BALL_STORED,
+    }
+
+    self.robot_state = self.robot_state_mapping[0]
     self.silos_absolute_state_msg = SiloArray()
     self.silos_absolute_state = [
       {"index": i + 1, "state": "", "bbox": [None] * 4} for i in range(5)
@@ -41,11 +75,39 @@ class AbsoluteStateEstimation(Node):
     self.x_center_image = self.__image_width / 2
     self.received_msg_consistency_counter = 0
 
+    self.known_state = None
+    self.__is_known_state_set = False
+
     self.get_logger().info("Absolute silo state estimation node started.")
+
+  def parameters_change_callback(self, parameters: List[Parameter]):
+    for parameter in parameters:
+      if (
+        parameter.name == "silos_state"
+        and parameter.type_ == Parameter.Type.STRING_ARRAY
+      ):
+        self.silos_absolute_state = [
+          {"index": i + 1, "state": state, "bbox": [None] * 4}
+          for i, state in enumerate(parameter.get_parameter_value().string_array_value)
+        ]
+        self.known_state = copy.deepcopy(self.silos_absolute_state)
+        self.__is_known_state_set = True
+        self.update_silos_absolute_state_msg()
+        return SetParametersResult(successful=True)
+    return SetParametersResult(successful=False)
+
+  def robot_state_callback(self, robot_state_msg: UInt8):
+    self.received_state = robot_state_msg.data
+    self.robot_state = self.robot_state_mapping[self.received_state]
+
+    if self.robot_state == RobotState.BALL_STORED and self.__aligned_silo != 0:
+      if len(self.silos_absolute_state[self.__aligned_silo - 1]["state"] < 2):
+        self.silos_absolute_state[self.__aligned_silo - 1]["state"] += self.TEAM_REPR
+    return
 
   def timer_callback(self):
     self.silos_absolute_state_publisher.publish(self.silos_absolute_state_msg)
-    # self.display_state()
+    # self.display_state(self.silos_absolute_state)
     return
 
   def aligned_info_callback(self, aligned_silo_msg: UInt8):
@@ -70,7 +132,7 @@ class AbsoluteStateEstimation(Node):
     # if YES, proceed
     # if NO, yet to implement...
     if len(silos_received_state) > 5 or len(silos_received_state) == 0:
-      self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
+      # self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
       return
 
     if len(silos_received_state) < 5:
@@ -78,6 +140,7 @@ class AbsoluteStateEstimation(Node):
       if silos_received_state is None:
         return
 
+    if self.__is_known_state_set or len(silos_received_state) != 5:
       ## Get consistent state from received state
       silos_received_state = self.compute_consistent_state(silos_received_state)
 
@@ -143,11 +206,6 @@ class AbsoluteStateEstimation(Node):
       if len(silo_received["state"]) < len(silo_previous["state"]):
         self.get_logger().warn(
           f"Silo-{silo_received['index']} -> Previous: {silo_previous['state']} balls | Received: {silo_received['state']}"
-        )
-        continue
-      if len(silo_received["state"]) > 3:
-        self._logger().warn(
-          f"Silo-{silo_received['index']} has more than 3 balls | State: {silo_received['state']}"
         )
         continue
       prev_state_len = len(silo_previous["state"])

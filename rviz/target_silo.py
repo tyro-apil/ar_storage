@@ -44,10 +44,11 @@ class MarkerBroadcaster(Node):
     self.target_silo_subscriber  # prevent unused variable warning
 
     self.silos_marker_publisher = self.create_publisher(MarkerArray, "target", 10)
-    self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
 
-    # if self.team_color == "red":
-    #   self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+    if self.team_color == "blue":
+      self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+    else:
+      self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
 
     self.get_logger().info("Target silo marker node started")
 
@@ -72,10 +73,14 @@ class MarkerBroadcaster(Node):
     arrow.action = Marker.ADD
 
     arrow.pose.position.x = self.silos_xy[silo_number - 1][0]
-    arrow.pose.position.y = self.silos_xy[silo_number - 1][1] + 0.75
+    if self.team_color == "blue":
+      arrow.pose.position.y = self.silos_xy[silo_number - 1][1] + 0.75
+      orientation = R.from_euler("ZYX", [-90.0, 0, 0], degrees=True)
+    else:
+      arrow.pose.position.y = self.silos_xy[silo_number - 1][1] - 0.75
+      orientation = R.from_euler("ZYX", [90.0, 0, 0], degrees=True)
     arrow.pose.position.z = self.silo_z_max / 2
 
-    orientation = R.from_euler("ZYX", [-90.0, 0, 0], degrees=True)
     q_arrow = orientation.as_quat()
 
     arrow.pose.orientation.x = q_arrow[0]
@@ -83,19 +88,24 @@ class MarkerBroadcaster(Node):
     arrow.pose.orientation.z = q_arrow[2]
     arrow.pose.orientation.w = q_arrow[3]
 
-    arrow.scale.x = 0.5
-    arrow.scale.y = 0.1
-    arrow.scale.z = 0.1
-
     match priority:
       case 0:
         arrow.color.r = 0.988
         arrow.color.g = 0.0
         arrow.color.b = 0.0
+
+        arrow.scale.x = 0.5
+        arrow.scale.y = 0.1
+        arrow.scale.z = 0.1
+
       case 1:
         arrow.color.r = 0.988
         arrow.color.g = 0.988
         arrow.color.b = 0.0
+
+        arrow.scale.x = 0.5 / 2
+        arrow.scale.y = 0.1 / 2
+        arrow.scale.z = 0.1 / 2
 
     arrow.color.a = 1.0
 

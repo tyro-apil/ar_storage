@@ -6,7 +6,7 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from silo_msgs.msg import SiloArray
-from std_msgs.msg import UInt8MultiArray
+from std_msgs.msg import Bool, UInt8MultiArray
 
 """
 Priority List:
@@ -53,6 +53,7 @@ class SiloSelection(Node):
     self.optimal_silos_publisher = self.create_publisher(
       UInt8MultiArray, "/silo_number", 10
     )
+    self.game_over_pub = self.create_publisher(Bool, "/is_game_over", 10)
 
     # Get team color as object variable for silo selection
     self.team_color = (
@@ -80,7 +81,7 @@ class SiloSelection(Node):
     self.OPPONENT_REPR = "R"
     if self.team_color == "red":
       self.TEAM_REPR, self.OPPONENT_REPR = self.OPPONENT_REPR, self.TEAM_REPR
-      self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+      self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
 
     # Initialize optimal silos as zero index
     self.optimal_silos: List[int] = [0] * 2
@@ -92,7 +93,20 @@ class SiloSelection(Node):
     self.get_logger().info(f"{node_name} node started")
 
     # list to indicate full silos state
-    self.full_silos_index = []
+    self.full_silos_index = set()
+    self.team_captured_silos = set()
+    self.opponent_captured_silos = set()
+    self.game_over_state = Bool()
+
+    # Priority order
+    self.priority_order = [
+      [self.TEAM_REPR + self.OPPONENT_REPR, self.OPPONENT_REPR + self.TEAM_REPR],
+      [self.TEAM_REPR * 2],
+      [self.OPPONENT_REPR * 2],
+      [""],
+      [self.TEAM_REPR],
+      [self.OPPONENT_REPR],
+    ]
 
     # baselink translation w.r.t. map
     self.translation_map2base = None
@@ -115,6 +129,11 @@ class SiloSelection(Node):
   def state_received_callback(self, state_msg: SiloArray):
     if self.translation_map2base is None:
       # self.get_logger().info("Waiting for baselink pose")
+      return
+
+    if len(self.full_silos_index) == 5:
+      self.update_game_over_state(True)
+      self.publish_game_over_state()
       return
 
     self.received_msg = state_msg
@@ -148,7 +167,7 @@ class SiloSelection(Node):
       elif silo.state == self.OPPONENT_REPR:
         self.priority_list[5].append(silo.index)
       else:
-        self.full_silos_index.append(silo.index)
+        self.full_silos_index.add(silo.index)
 
   def update_target(self):
     second_priority_list = self.priority_list
@@ -187,6 +206,15 @@ class SiloSelection(Node):
     del_x = self.silos_xy[silo_index - 1][0] - self.translation_map2base[0]
     del_y = self.silos_xy[silo_index - 1][1] - self.translation_map2base[1]
     return np.sqrt(del_x**2 + del_y**2)
+
+  def update_game_over_state(self, is_game_over: bool):
+    self.game_over_state.data = is_game_over
+    return
+
+  def publish_game_over_state(self):
+    self.game_over_pub.publish(self.game_over_state)
+    self.get_logger().info("Game Over... All silos are full")
+    return
 
 
 def main(args=None):

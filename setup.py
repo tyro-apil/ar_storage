@@ -45,6 +45,8 @@ setup(
       # Fake publisher nodes
       "fake_map2base_link_node = fake.map2base_link:main",
       "fake_silo_state_publisher_node = fake.silo_state_map:main",
+      # Debug nodes
+      "capture_node = silo.capture_dbg:main",
     ],
   },
 )

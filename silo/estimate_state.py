@@ -25,11 +25,11 @@ class StateEstimation(Node):
     team_color = self.get_parameter("team_color").get_parameter_value().string_value
 
     ########################################
-    self.silo_order_descending = False
-    # if team_color == "blue":
-    #   self.silo_order_descending = False
-    # else:
-    #   self.silo_order_descending = True
+    # self.silo_order_descending = False
+    if team_color == "blue":
+      self.silo_order_descending = False
+    else:
+      self.silo_order_descending = True
 
     ########################################
 
@@ -48,11 +48,16 @@ class StateEstimation(Node):
     self.get_logger().info("Silo state estimation node started.")
 
   def detections_callback(self, detections_msg: DetectionArray):
+    # breakpoint()
     # filter detections
     silos, balls = self.separate_detections(detections_msg.detections)
     silos = self.filter_silos(silos)
     self.silos_num = len(silos)
     self.balls_num = len(balls)
+
+    # self.get_logger().info(
+    #   f"Detected {self.silos_num} silos and {self.balls_num} balls"
+    # )
     if self.silos_num > 5:
       self.get_logger().warn("Too many silos detected")
       return
@@ -87,11 +92,12 @@ class StateEstimation(Node):
 
     # sort balls inside silo by y_coordinate
     for i in range(len(state)):
+      state[i].sort(key=lambda ball: ball.bbox.center.position.y, reverse=True)
       if len(state[i]) > 3:
         self.get_logger().warn(
           f"Too many balls detected in silo-{i+1} i.e. {len(state[i])} balls"
         )
-      state[i].sort(key=lambda ball: ball.bbox.center.position.y, reverse=True)
+        state[i] = state[i][:3]
 
     # stringify the state of silos
     state_repr = self.stringify_state(state)
@@ -119,6 +125,7 @@ class StateEstimation(Node):
     return silos, balls
 
   def filter_silos(self, silos: List[Detection]) -> List[Detection]:
+    return silos
     filtered_silos = []
     for silo in silos:
       xywh = self.parse_bbox(silo.bbox)
