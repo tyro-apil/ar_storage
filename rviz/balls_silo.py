@@ -47,8 +47,8 @@ class MarkerBroadcaster(Node):
     self.silos_marker_publisher = self.create_publisher(MarkerArray, "silos_marker", 10)
     self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
 
-    # if self.team_color == "red":
-    #   self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
+    if self.team_color == "red":
+      self.silos_xy = [(x, -self.silo_y) for x in self.silos_x]
 
     self.get_logger().info("Silo balls marker node started")
 
