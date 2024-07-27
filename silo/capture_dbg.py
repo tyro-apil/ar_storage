@@ -9,6 +9,12 @@ from cv_bridge import CvBridge
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.qos import (
+  QoSDurabilityPolicy,
+  QoSHistoryPolicy,
+  QoSProfile,
+  QoSReliabilityPolicy,
+)
 from sensor_msgs.msg import Image
 
 
@@ -22,13 +28,27 @@ class CaptureNode(Node):
     self.raw_images_path = "/home/apil/work/robocon2024/cv/live_capture/silo/raw"
     self.debug_images_path = "/home/apil/work/robocon2024/cv/live_capture/silo/debug"
 
-    rect_img_sub = message_filters.Subscriber(self, Image, "image_raw")
-    debug_img_sub = message_filters.Subscriber(self, Image, "dbg_image")
+    # rect_img_sub = message_filters.Subscriber(self, Image, "image_raw")
+    # debug_img_sub = message_filters.Subscriber(self, Image, "dbg_image")
 
-    self._synchronizer = message_filters.ApproximateTimeSynchronizer(
-      (rect_img_sub, debug_img_sub), 10, 0.5, True
+    image_qos_profile = QoSProfile(
+      reliability=QoSReliabilityPolicy.BEST_EFFORT,
+      history=QoSHistoryPolicy.KEEP_LAST,
+      durability=QoSDurabilityPolicy.VOLATILE,
+      depth=1,
     )
-    self._synchronizer.registerCallback(self.img_received_callback)
+
+    self.rect_img_sub = self.create_subscription(
+      Image, "image_raw", self.rect_img_callback, qos_profile=image_qos_profile
+    )
+    self.debug_img_sub = self.create_subscription(
+      Image, "dbg_image", self.debug_img_callback, qos_profile=image_qos_profile
+    )
+
+    # self._synchronizer = message_filters.ApproximateTimeSynchronizer(
+    #   (rect_img_sub, debug_img_sub), 10, 0.5, True
+    # )
+    # self._synchronizer.registerCallback(self.img_received_callback)
 
     self.__enable_capture = (
       self.get_parameter("enable_capture").get_parameter_value().bool_value
@@ -38,7 +58,8 @@ class CaptureNode(Node):
     )
 
     self.bridge = CvBridge()
-    self.last_captured_time = time.time()
+    self.last_captured_time_raw = time.time()
+    self.last_captured_time_dbg = time.time()
 
     self.add_on_set_parameters_callback(self.on_set_parameters_callback)
 
@@ -53,6 +74,34 @@ class CaptureNode(Node):
         # )
         return SetParametersResult(successful=True)
     return SetParametersResult(successful=False)
+
+  def rect_img_callback(self, msg: Image):
+    current_time = time.time()
+    if current_time - self.last_captured_time_raw < self.capture_interval:
+      return
+    if self.__enable_capture:
+      stamp = msg.header.stamp
+      file_name = f"{stamp.sec}_{stamp.nanosec}.jpg"
+
+      img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+      img_path = os.path.join(self.raw_images_path, file_name)
+      cv2.imwrite(img_path, img)
+
+      self.last_captured_time_raw = current_time
+
+  def debug_img_callback(self, msg: Image):
+    current_time = time.time()
+    if current_time - self.last_captured_time_dbg < self.capture_interval:
+      return
+    if self.__enable_capture:
+      stamp = msg.header.stamp
+      file_name = f"{stamp.sec}_{stamp.nanosec}.jpg"
+
+      img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+      img_path = os.path.join(self.debug_images_path, file_name)
+      cv2.imwrite(img_path, img)
+
+      self.last_captured_time_dbg = current_time
 
   def img_received_callback(self, rect_img_msg: Image, debug_img_msg: Image):
     # self.get_logger().info("Both images combined callback")
