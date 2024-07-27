@@ -55,6 +55,7 @@ class CaptureNode(Node):
     return SetParametersResult(successful=False)
 
   def img_received_callback(self, rect_img_msg: Image, debug_img_msg: Image):
+    # self.get_logger().info("Both images combined callback")
     current_time = time.time()
     if current_time - self.last_captured_time < self.capture_interval:
       return
