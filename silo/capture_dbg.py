@@ -16,7 +16,8 @@ class CaptureNode(Node):
   def __init__(self):
     super().__init__("capture_node")
 
-    self.declare_parameter("enable_capture", False)
+    self.declare_parameter("enable_capture", True)
+    self.declare_parameter("capture_interval", 1.0)
 
     self.raw_images_path = "/home/apil/work/robocon2024/cv/live_capture/silo/raw"
     self.debug_images_path = "/home/apil/work/robocon2024/cv/live_capture/silo/debug"
@@ -25,13 +26,17 @@ class CaptureNode(Node):
     debug_img_sub = message_filters.Subscriber(self, Image, "dbg_image")
 
     self._synchronizer = message_filters.ApproximateTimeSynchronizer(
-      (rect_img_sub, debug_img_sub), 10, 0.05, True
+      (rect_img_sub, debug_img_sub), 10, 0.5, True
     )
     self._synchronizer.registerCallback(self.img_received_callback)
 
     self.__enable_capture = (
       self.get_parameter("enable_capture").get_parameter_value().bool_value
     )
+    self.capture_interval = (
+      self.get_parameter("capture_interval").get_parameter_value().double_value
+    )
+
     self.bridge = CvBridge()
     self.last_captured_time = time.time()
 
@@ -51,9 +56,9 @@ class CaptureNode(Node):
 
   def img_received_callback(self, rect_img_msg: Image, debug_img_msg: Image):
     current_time = time.time()
-    if current_time - self.last_captured_time < 1.0:
+    if current_time - self.last_captured_time < self.capture_interval:
       return
-    if random.random() < 0.10 or self.enable_capture:
+    if random.random() < 0.50 or self.enable_capture:
       stamp = rect_img_msg.header.stamp
       file_name = f"{stamp.sec}_{stamp.nanosec}.jpg"
 
