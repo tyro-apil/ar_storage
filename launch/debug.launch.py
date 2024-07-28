@@ -2,6 +2,7 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
+from cv2 import broadcast
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -37,7 +38,7 @@ def generate_launch_description():
   # NODES
   #
   capture_node_cmd = Node(
-    package="oakd",
+    package="silo",
     namespace=namespace,
     executable="capture_node",
     name="capture_node",
@@ -48,6 +49,16 @@ def generate_launch_description():
     parameters=[capture_config],
   )
 
+  broadcast_node_cmd = Node(
+    package="silo",
+    namespace=namespace,
+    executable="broadcast_node",
+    name="broadcast_node",
+    remappings=[
+      ("image_raw", debug_image_topic),
+    ],
+  )
+
   ld = LaunchDescription()
 
   ld.add_action(namespace_cmd)
@@ -55,4 +66,5 @@ def generate_launch_description():
   ld.add_action(debug_image_topic_cmd)
 
   ld.add_action(capture_node_cmd)
+  ld.add_action(broadcast_node_cmd)
   return ld
