@@ -38,7 +38,7 @@ class ImagePublisher(Node):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.sock.bind((self.tcp_ip, self.tcp_port))
     self.sock.listen(5)
-    self.clients = []
+    self.sock_clients = []
 
     # Start a thread to accept clients
     self.accept_thread = threading.Thread(target=self.accept_clients)
@@ -48,7 +48,7 @@ class ImagePublisher(Node):
     while True:
       conn, addr = self.sock.accept()
       self.get_logger().info(f"Accepted connection from {addr}")
-      self.clients.append(conn)
+      self.sock_clients.append(conn)
 
   def listener_callback(self, msg):
     try:
@@ -61,12 +61,12 @@ class ImagePublisher(Node):
       size = len(data)
 
       # Send the size of the data first, then the data itself to all clients
-      for client in self.clients:
+      for client in self.sock_clients:
         try:
           client.sendall(struct.pack(">L", size) + data)
         except socket.error as e:
           self.get_logger().error(f"Error sending data to client: {e}")
-          self.clients.remove(client)
+          self.sock_clients.remove(client)
           time.sleep(1)
     except socket.error as e:
       print(f"Socket error: {e}")
