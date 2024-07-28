@@ -27,7 +27,7 @@ class ImagePublisher(Node):
       depth=1,
     )
     self.subscription = self.create_subscription(
-      Image, "image_raw", self.listener_callback, qos_profile=image_qos_profile
+      Image, "dbg_image", self.listener_callback, qos_profile=image_qos_profile
     )
     self.subscription  # prevent unused variable warning
     self.bridge = CvBridge()

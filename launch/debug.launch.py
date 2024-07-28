@@ -55,7 +55,7 @@ def generate_launch_description():
     executable="broadcast_node",
     name="broadcast_node",
     remappings=[
-      ("image_raw", debug_image_topic),
+      ("dbg_image", debug_image_topic),
     ],
   )
 
