@@ -47,6 +47,7 @@ setup(
       "fake_silo_state_publisher_node = fake.silo_state_map:main",
       # Debug nodes
       "capture_node = silo.capture_dbg:main",
+      "broadcast_node = silo.broadcast_img:main",
     ],
   },
 )
