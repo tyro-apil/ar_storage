@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import socket
+from typing import Tuple, Optional
 
 import cv2
 import numpy as np
@@ -15,6 +16,7 @@ from rclpy.qos import (
 )
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
+from std_srvs.srv import Trigger
 
 PORT = 12345
 
@@ -22,6 +24,125 @@ PORT = 12345
 class ImageReceiverNode(Node):
   def __init__(self):
     super().__init__("image_receiver_node")
+
+    self.declare_parameter("top_roi", [0.0] * 4)    # XYXY format
+    self.declare_parameter("match_fraction", 0.50)
+
+    self.declare_parameter("red1_h_low", 0)
+    self.declare_parameter("red1_s_low", 100)
+    self.declare_parameter("red1_v_low", 40)
+    self.declare_parameter("red1_h_high", 15)
+    self.declare_parameter("red1_s_high", 255)
+    self.declare_parameter("red1_v_high", 235)
+
+    self.declare_parameter("red2_h_low", 165)
+    self.declare_parameter("red2_s_low", 115)
+    self.declare_parameter("red2_v_low", 65)
+    self.declare_parameter("red2_h_high", 185)
+    self.declare_parameter("red2_s_high", 255)
+    self.declare_parameter("red2_v_high", 210)
+
+    self.declare_parameter("blue1_h_low", 80)
+    self.declare_parameter("blue1_s_low", 130)
+    self.declare_parameter("blue1_v_low", 30)
+    self.declare_parameter("blue1_h_high", 110)
+    self.declare_parameter("blue1_s_high", 170)
+    self.declare_parameter("blue1_v_high", 90)
+
+    self.declare_parameter("blue2_h_low", 100)
+    self.declare_parameter("blue2_s_low", 100)
+    self.declare_parameter("blue2_v_low", 50)
+    self.declare_parameter("blue2_h_high", 115)
+    self.declare_parameter("blue2_s_high", 230)
+    self.declare_parameter("blue2_v_high", 230)
+
+    self.red1_h_low = (
+      self.get_parameter("red1_h_low").get_parameter_value().integer_value
+    )
+    self.red1_s_low = (
+      self.get_parameter("red1_s_low").get_parameter_value().integer_value
+    )
+    self.red1_v_low = (
+      self.get_parameter("red1_v_low").get_parameter_value().integer_value
+    )
+    self.red1_h_high = (
+      self.get_parameter("red1_h_high").get_parameter_value().integer_value
+    )
+    self.red1_s_high = (
+      self.get_parameter("red1_s_high").get_parameter_value().integer_value
+    )
+    self.red1_v_high = (
+      self.get_parameter("red1_v_high").get_parameter_value().integer_value
+    )
+
+    self.red2_h_low = (
+      self.get_parameter("red2_h_low").get_parameter_value().integer_value
+    )
+    self.red2_s_low = (
+      self.get_parameter("red2_s_low").get_parameter_value().integer_value
+    )
+    self.red2_v_low = (
+      self.get_parameter("red2_v_low").get_parameter_value().integer_value
+    )
+    self.red2_h_high = (
+      self.get_parameter("red2_h_high").get_parameter_value().integer_value
+    )
+    self.red2_s_high = (
+      self.get_parameter("red2_s_high").get_parameter_value().integer_value
+    )
+    self.red2_v_high = (
+      self.get_parameter("red2_v_high").get_parameter_value().integer_value
+    )
+
+    self.blue1_h_low = (
+      self.get_parameter("blue1_h_low").get_parameter_value().integer_value
+    )
+    self.blue1_s_low = (
+      self.get_parameter("blue1_s_low").get_parameter_value().integer_value
+    )
+    self.blue1_v_low = (
+      self.get_parameter("blue1_v_low").get_parameter_value().integer_value
+    )
+    self.blue1_h_high = (
+      self.get_parameter("blue1_h_high").get_parameter_value().integer_value
+    )
+    self.blue1_s_high = (
+      self.get_parameter("blue1_s_high").get_parameter_value().integer_value
+    )
+    self.blue1_v_high = (
+      self.get_parameter("blue1_v_high").get_parameter_value().integer_value
+    )
+
+    self.blue2_h_low = (
+      self.get_parameter("blue1_h_low").get_parameter_value().integer_value
+    )
+    self.blue2_s_low = (
+      self.get_parameter("blue1_s_low").get_parameter_value().integer_value
+    )
+    self.blue2_v_low = (
+      self.get_parameter("blue1_v_low").get_parameter_value().integer_value
+    )
+    self.blue2_h_high = (
+      self.get_parameter("blue1_h_high").get_parameter_value().integer_value
+    )
+    self.blue2_s_high = (
+      self.get_parameter("blue1_s_high").get_parameter_value().integer_value
+    )
+    self.blue2_v_high = (
+      self.get_parameter("blue1_v_high").get_parameter_value().integer_value
+    )
+
+    self.top_roi = (
+      self.get_parameter("top_roi").get_parameter_value().integer_array_value
+    )
+    self.match_fraction = (
+      self.get_parameter("match_fraction").get_parameter_value().double_value
+    )
+
+    self.srv = self.create_service(
+      srv_type=Trigger, srv_name="/is_ball_at_top", callback=self.is_ball_at_top
+    )
+    self.last_received_img = None
 
     image_qos_profile = QoSProfile(
       reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -81,6 +202,8 @@ class ImageReceiverNode(Node):
             self.get_logger().warn("Failed to decode frame.")
             continue
 
+          self.last_received_img = cv_image
+
           msg_header = Header()
           msg_header.stamp = self.get_clock().now().to_msg()
           msg_header.frame_id = "picam_link_optical"
@@ -93,6 +216,96 @@ class ImageReceiverNode(Node):
 
       except Exception as e:
         self.get_logger().error(f"Error receiving image: {str(e)}")
+
+  def is_ball_at_top(
+    self, request: Trigger.Request, response: Trigger.Response
+  ) -> Trigger.Response:
+    if self.last_received_img is None:
+      response.success = False
+      response.message = "No image to compare"
+      return response
+
+    result, color = self.query_in_hsv()
+    response.success = result
+    if color is None:
+      response.message = "Top spot is vacant"
+    else:
+      response.message = f"{color} ball is at top"
+    return response
+
+  def query_in_hsv(self) -> Tuple[bool, Optional[str]]:
+    # Convert image to HSV for color filtering
+    hsv_frame = cv2.cvtColor(self.last_received_img, cv2.COLOR_BGR2HSV)
+
+    red_mask = self.get_mask(hsv_frame, "red")
+    blue_mask = self.get_mask(hsv_frame, "blue")
+
+    red_mask = self.preprocess_mask(red_mask)
+    blue_mask = self.preprocess_mask(blue_mask)
+
+    red_match_percent = self.compute_match_percent(hsv_frame, self.top_roi, red_mask)
+    blue_match_percent = self.compute_match_percent(hsv_frame, self.top_roi, blue_mask)
+
+    if (red_match_percent > self.match_fraction) or (blue_match_percent>self.match_fraction):
+      dominant_color = ""
+      if red_match_percent > blue_match_percent:
+        dominant_color = "red"
+      else:
+        dominant_color = "blue"
+      return True, dominant_color
+    return False, None
+
+
+  def get_mask(self, hsv_frame: cv2.Mat, color: str) -> cv2.Mat:
+    match color:
+      case "red":
+        red1_hsv_low = np.array([self.red1_h_low, self.red1_s_low, self.red1_v_low])
+        red1_hsv_high = np.array([self.red1_h_high, self.red1_s_high, self.red1_v_high])
+
+        red2_hsv_low = np.array([self.red2_h_low, self.red2_s_low, self.red2_v_low])
+        red2_hsv_high = np.array([self.red2_h_high, self.red2_s_high, self.red2_v_high])
+
+        red1_mask = cv2.inRange(hsv_frame, red1_hsv_low, red1_hsv_high)
+        red2_mask = cv2.inRange(hsv_frame, red2_hsv_low, red2_hsv_high)
+        mask = cv2.bitwise_or(red1_mask, red2_mask)
+
+      case "blue":
+        blue1_hsv_low = np.array([self.blue1_h_low, self.blue1_s_low, self.blue1_v_low])
+        blue1_hsv_high = np.array(
+          [self.blue1_h_high, self.blue1_s_high, self.blue1_v_high]
+        )
+
+        blue2_hsv_low = np.array([self.blue2_h_low, self.blue2_s_low, self.blue2_v_low])
+        blue2_hsv_high = np.array(
+          [self.blue2_h_high, self.blue2_s_high, self.blue2_v_high]
+        )
+
+        red1_mask = cv2.inRange(hsv_frame, blue1_hsv_low, blue1_hsv_high)
+        red2_mask = cv2.inRange(hsv_frame, blue2_hsv_low, blue2_hsv_high)
+        mask = cv2.bitwise_or(blue2_hsv_low, blue2_hsv_high)
+
+    return mask
+  
+  def compute_match_percent(self, hsv_img: cv2.Mat, roi: Tuple, mask: cv2.Mat) -> float:
+    x1, y1, x2, y2 = roi
+    roi_img = hsv_img[y1:y2, x1:x2]
+    roi_mask = mask[y1:y2, x1:x2]
+
+    roi_mask = cv2.bitwise_and(roi_img, roi_img, mask=roi_mask)
+    roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_HSV2BGR)
+    roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_BGR2GRAY)
+
+    match_percent = cv2.countNonZero(roi_mask) / (roi_mask.shape[0] * roi_mask.shape[1])
+    return match_percent
+
+  def preprocess_mask(self, mask: cv2.Mat) -> cv2.Mat:
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    processed_mask = cv2.dilate(mask, kernel, iterations=2)
+    return processed_mask
+
+  def combine_masks(self, mask1: cv2.Mat, mask2: cv2.Mat) -> cv2.Mat:
+    combined_mask = cv2.bitwise_or(mask1, mask2)
+    return combined_mask
 
   def destroy_node(self):
     self.server_socket.close()
