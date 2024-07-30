@@ -19,6 +19,7 @@ def generate_launch_description():
   game_over_topic = "/is_game_over"
   infer_on = "cuda:0"
   iou = "0.25"
+  check_top_service = "/is_ball_at_top"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -30,6 +31,7 @@ def generate_launch_description():
     launch_arguments={
       "namespace": namespace,
       "input_image_topic": input_image_topic,
+      "check_top_service": check_top_service
     }.items(),
   )
 

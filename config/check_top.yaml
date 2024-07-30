@@ -1,0 +1,33 @@
+/**:
+  ros_parameters:
+    top_roi: [0,0,100,100]
+    match_fraction: 0.5
+
+    red1_h_low: 0
+    red1_s_low: 100
+    red1_v_low: 40
+    red1_h_high: 15
+    red1_s_high: 255
+    red1_v_high: 235
+
+    red2_h_low: 165
+    red2_s_low: 115
+    red2_v_low: 65
+    red2_h_high: 185
+    red2_s_high: 255
+    red2_v_high: 210
+
+    blue1_h_low: 80
+    blue1_s_low: 130
+    blue1_v_low: 30
+    blue1_h_high: 110
+    blue1_s_high: 170
+    blue1_v_high: 90
+
+    blue2_h_low: 100
+    blue2_s_low: 100
+    blue2_v_low: 50
+    blue2_h_high: 115
+    blue2_s_high: 230
+    blue2_v_high: 230
+  
