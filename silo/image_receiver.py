@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import socket
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+import os
+import time
 
 import cv2
 import numpy as np
@@ -17,6 +19,9 @@ from rclpy.qos import (
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 from std_srvs.srv import Trigger
+from ultralytics import YOLO
+from ultralytics.engine.results import Boxes, Results
+from ultralytics.utils.plotting import Annotator
 
 PORT = 12345
 
@@ -24,6 +29,11 @@ PORT = 12345
 class ImageReceiverNode(Node):
   def __init__(self):
     super().__init__("image_receiver_node")
+
+    self.declare_parameter("use_model", False)
+    self.declare_parameter("model", "check_top.pt")
+    self.declare_parameter("device", "cuda:0")
+    self.declare_parameter("threshold", 0.7)
 
     self.declare_parameter("top_roi", [0.0] * 4)    # XYXY format
     self.declare_parameter("match_fraction", 0.50)
@@ -138,6 +148,15 @@ class ImageReceiverNode(Node):
     self.match_fraction = (
       self.get_parameter("match_fraction").get_parameter_value().double_value
     )
+    self.__use_model = self.get_parameter("use_model").get_parameter_value().bool_value
+
+    if self.__use_model:
+      self.model = self.get_parameter("model").get_parameter_value().string_value
+      self.device = self.get_parameter("device").get_parameter_value().string_value
+      self.threshold = self.get_parameter("threshold").get_parameter_value().double_value
+      self.yolo = YOLO(self.model)
+      self.debug_img_dir = "/home/apil/work/robocon2024/cv/live_capture/close_silo"
+
 
     self.srv = self.create_service(
       srv_type=Trigger, srv_name="/is_ball_at_top", callback=self.is_ball_at_top
@@ -225,12 +244,13 @@ class ImageReceiverNode(Node):
       response.message = "No image to compare"
       return response
 
-    result, color = self.query_in_hsv()
+    # result, color = self.query_in_hsv()
+    result, color = self.query_model()
     response.success = result
     if color is None:
       response.message = "Top spot is vacant"
     else:
-      response.message = f"{color} ball is at top"
+      response.message = f"{color} is at top"
     return response
 
   def query_in_hsv(self) -> Tuple[bool, Optional[str]]:
@@ -254,7 +274,65 @@ class ImageReceiverNode(Node):
         dominant_color = "blue"
       return True, dominant_color
     return False, None
+  
+  def query_model(self) -> Tuple[bool, Optional[str]]:
+    img_copy = self.last_received_img.copy()
 
+    results = self.yolo.predict(
+        source=self.last_received_img,
+        verbose=False,
+        stream=False,
+        conf=self.threshold,
+        device=self.device,
+      )
+    
+    annotator = Annotator(img_copy)
+    r = results[0].boxes
+    for box in boxes:
+      b = box.xyxy[0]
+      c = box.cls
+      annotator.box_label(b, self.yolo.names[int(c)])
+    annotated_img = annotator.result()
+    now = time.time()
+    cv2.imwrite(os.path.join(self.debug_img_dir, str(now)), annotated_img)
+
+    results: Results = results[0].cpu()
+    
+    hypothesis = self.parse_hypothesis(results)
+    boxes = self.parse_boxes(results)
+
+    is_on_top, index = self.check_on_top(boxes)
+    if index is None:
+      return (is_on_top, None)
+    return is_on_top, hypothesis[index]["class_name"]
+
+  def parse_hypothesis(self, results: Results) -> List:
+    hypothesis_list = []
+
+    for box_data in results.boxes:
+      hypothesis = {
+        "class_id": int(box_data.cls),
+        "class_name": self.yolo.names[int(box_data.cls)],
+        "score": float(box_data.conf),
+      }
+      hypothesis_list.append(hypothesis)
+
+    return hypothesis_list
+  
+  def parse_boxes(self, results: Results) -> List:
+    boxes_list = []
+
+    for box_data in results.boxes:
+      box = box_data.xyxy[0]
+      boxes_list.append(box)
+      
+    return boxes_list
+  
+  def check_on_top(self, boxes: List[List]):
+    for i, xyxy in boxes:
+      if (xyxy[0] <= 50) and ((xyxy[2]-xyxy[0])*(xyxy[3]-xyxy[1]) >= 5000):
+        return True, i
+    return False, None
 
   def get_mask(self, hsv_frame: cv2.Mat, color: str) -> cv2.Mat:
     match color:
