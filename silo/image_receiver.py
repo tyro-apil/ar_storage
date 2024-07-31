@@ -244,8 +244,11 @@ class ImageReceiverNode(Node):
       response.message = "No image to compare"
       return response
 
-    # result, color = self.query_in_hsv()
-    result, color = self.query_model()
+    if self.__use_model:
+      result, color = self.query_model()
+    else:
+      result, color = self.query_in_hsv()
+
     response.success = result
     if color is None:
       response.message = "Top spot is vacant"
