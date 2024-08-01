@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import socket
-from typing import Tuple, Optional, List
 import os
+import socket
 import time
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -20,7 +20,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 from std_srvs.srv import Trigger
 from ultralytics import YOLO
-from ultralytics.engine.results import Boxes, Results
+from ultralytics.engine.results import Results
 from ultralytics.utils.plotting import Annotator
 
 PORT = 12345
@@ -154,10 +154,11 @@ class ImageReceiverNode(Node):
     if self.__use_model:
       self.model = self.get_parameter("model").get_parameter_value().string_value
       self.device = self.get_parameter("device").get_parameter_value().string_value
-      self.threshold = self.get_parameter("threshold").get_parameter_value().double_value
+      self.threshold = (
+        self.get_parameter("threshold").get_parameter_value().double_value
+      )
       self.yolo = YOLO(self.model)
       self.debug_img_dir = "/home/apil/work/robocon2024/cv/live_capture/close_silo"
-
 
     self.srv = self.create_service(
       srv_type=Trigger, srv_name="/is_ball_at_top", callback=self.is_ball_at_top
@@ -270,7 +271,9 @@ class ImageReceiverNode(Node):
     red_match_percent = self.compute_match_percent(hsv_frame, self.top_roi, red_mask)
     blue_match_percent = self.compute_match_percent(hsv_frame, self.top_roi, blue_mask)
 
-    if (red_match_percent > self.match_fraction) or (blue_match_percent>self.match_fraction):
+    if (red_match_percent > self.match_fraction) or (
+      blue_match_percent > self.match_fraction
+    ):
       dominant_color = ""
       if red_match_percent > blue_match_percent:
         dominant_color = "red"
@@ -278,21 +281,21 @@ class ImageReceiverNode(Node):
         dominant_color = "blue"
       return True, dominant_color
     return False, None
-  
+
   def query_model(self) -> Tuple[bool, Optional[str]]:
     img_copy = self.last_received_img.copy()
 
     results = self.yolo.predict(
-        source=self.last_received_img,
-        verbose=False,
-        stream=False,
-        conf=self.threshold,
-        device=self.device,
-      )
-    
+      source=self.last_received_img,
+      verbose=False,
+      stream=False,
+      conf=self.threshold,
+      device=self.device,
+    )
+
     annotator = Annotator(img_copy)
     r = results[0].boxes
-    for box in boxes:
+    for box in r:
       b = box.xyxy[0]
       c = box.cls
       annotator.box_label(b, self.yolo.names[int(c)])
@@ -301,7 +304,7 @@ class ImageReceiverNode(Node):
     cv2.imwrite(os.path.join(self.debug_img_dir, str(now)), annotated_img)
 
     results: Results = results[0].cpu()
-    
+
     hypothesis = self.parse_hypothesis(results)
     boxes = self.parse_boxes(results)
 
