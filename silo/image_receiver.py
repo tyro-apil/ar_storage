@@ -322,19 +322,19 @@ class ImageReceiverNode(Node):
       hypothesis_list.append(hypothesis)
 
     return hypothesis_list
-  
+
   def parse_boxes(self, results: Results) -> List:
     boxes_list = []
 
     for box_data in results.boxes:
       box = box_data.xyxy[0]
       boxes_list.append(box)
-      
+
     return boxes_list
-  
+
   def check_on_top(self, boxes: List[List]):
     for i, xyxy in boxes:
-      if (xyxy[0] <= 50) and ((xyxy[2]-xyxy[0])*(xyxy[3]-xyxy[1]) >= 5000):
+      if xyxy[1] <= 50:
         return True, i
     return False, None
 
