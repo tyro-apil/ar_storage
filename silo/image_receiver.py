@@ -35,7 +35,7 @@ class ImageReceiverNode(Node):
     self.declare_parameter("device", "cuda:0")
     self.declare_parameter("threshold", 0.7)
 
-    self.declare_parameter("top_roi", [0.0] * 4)    # XYXY format
+    self.declare_parameter("top_roi", [0] * 4)  # XYXY format
     self.declare_parameter("match_fraction", 0.50)
 
     self.declare_parameter("red1_h_low", 0)
@@ -143,8 +143,9 @@ class ImageReceiverNode(Node):
     )
 
     self.top_roi = (
-      self.get_parameter("top_roi").get_parameter_value().integer_array_value
+      self.get_parameter("top_roi").get_parameter_value().double_array_value
     )
+    self.top_roi = [int(i) for i in self.top_roi]
     self.match_fraction = (
       self.get_parameter("match_fraction").get_parameter_value().double_value
     )
