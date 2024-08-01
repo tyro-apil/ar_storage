@@ -362,12 +362,13 @@ class ImageReceiverNode(Node):
           [self.blue2_h_high, self.blue2_s_high, self.blue2_v_high]
         )
 
-        red1_mask = cv2.inRange(hsv_frame, blue1_hsv_low, blue1_hsv_high)
-        red2_mask = cv2.inRange(hsv_frame, blue2_hsv_low, blue2_hsv_high)
-        mask = cv2.bitwise_or(blue2_hsv_low, blue2_hsv_high)
+        blue1_mask = cv2.inRange(hsv_frame, blue1_hsv_low, blue1_hsv_high)
+        mask = blue1_mask
+        # blue2_mask = cv2.inRange(hsv_frame, blue2_hsv_low, blue2_hsv_high)
+        # mask = cv2.bitwise_or(blue1_mask, blue2_mask)
 
     return mask
-  
+
   def compute_match_percent(self, hsv_img: cv2.Mat, roi: Tuple, mask: cv2.Mat) -> float:
     x1, y1, x2, y2 = roi
     roi_img = hsv_img[y1:y2, x1:x2]
