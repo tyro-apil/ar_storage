@@ -34,6 +34,18 @@ def generate_launch_description():
     default_value="/is_ball_at_top",
   )
 
+  silo_check_request_topic = LaunchConfiguration("silo_check_request_topic")
+  silo_check_request_topic_cmd = DeclareLaunchArgument(
+    "silo_check_request_topic",
+    default_value="/silo_check_request",
+  )
+
+  silo_check_result_topic = LaunchConfiguration("silo_check_result_topic")
+  silo_check_result_topic_cmd = DeclareLaunchArgument(
+    "silo_check_result_topic",
+    default_value="/silo_check_result",
+  )
+
   #
   # NODES
   #
@@ -44,9 +56,11 @@ def generate_launch_description():
     name="image_receiver_node",
     remappings=[
       ("image_raw", input_image_topic),
-      ("/is_ball_at_top", check_top_service)
+      ("/is_ball_at_top", check_top_service),
+      ("/silo_check_request", silo_check_request_topic),
+      ("/silo_check_result", silo_check_result_topic),
     ],
-    parameters=[check_top_config]
+    parameters=[check_top_config],
   )
 
   ld = LaunchDescription()
@@ -54,6 +68,8 @@ def generate_launch_description():
   ld.add_action(namespace_cmd)
   ld.add_action(input_image_topic_cmd)
   ld.add_action(check_top_service_cmd)
+  ld.add_action(silo_check_request_topic_cmd)
+  ld.add_action(silo_check_result_topic_cmd)
   # Add nodes
   ld.add_action(cam_driver_node_cmd)
 

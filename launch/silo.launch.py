@@ -20,6 +20,8 @@ def generate_launch_description():
   infer_on = "cuda:0"
   iou = "0.25"
   check_top_service = "/is_ball_at_top"
+  silo_check_request_topic = "/silo_check_request"
+  silo_check_result_topic = "/silo_check_result"
 
   cam_driver = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
@@ -31,7 +33,9 @@ def generate_launch_description():
     launch_arguments={
       "namespace": namespace,
       "input_image_topic": input_image_topic,
-      "check_top_service": check_top_service
+      "check_top_service": check_top_service,
+      "silo_check_request_topic": silo_check_request_topic,
+      "silo_check_result_topic": silo_check_result_topic,
     }.items(),
   )
 
