@@ -5,8 +5,8 @@
     device: "cuda:0"
     threshold: 0.7
 
-    top_roi: [0,0,921,150]
-    match_fraction: 0.4
+    top_roi: [0,0,921,275]
+    match_fraction: 0.50
 
     red1_h_low: 0
     red1_s_low: 100
