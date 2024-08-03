@@ -17,7 +17,7 @@ from rclpy.qos import (
   QoSReliabilityPolicy,
 )
 from sensor_msgs.msg import Image
-from std_msgs.msg import Header
+from std_msgs.msg import Bool, Header, UInt8
 from std_srvs.srv import Trigger
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
@@ -172,9 +172,14 @@ class ImageReceiverNode(Node):
       depth=1,
     )
 
+    self.silo_check_subscriber = self.create_subscription(
+      UInt8, "/silo_check_request", self.silo_check_callback, 10
+    )
+    self.silo_check_subscriber
     self.publisher_ = self.create_publisher(
       Image, "image_raw", qos_profile=image_qos_profile
     )
+    self.silo_check_publisher = self.create_publisher(Bool, "/silo_check_result", 10)
     self.bridge = CvBridge()
 
     # Set up socket
@@ -237,6 +242,24 @@ class ImageReceiverNode(Node):
 
       except Exception as e:
         self.get_logger().error(f"Error receiving image: {str(e)}")
+
+  def silo_check_callback(self, msg: UInt8):
+    if msg.data != 0xA5:
+      return
+    response = Bool()
+    response.data = False
+    if self.last_received_img is None:
+      self.get_logger().warn("No image to compare")
+      self.silo_check_publisher.publish(response)
+      return
+
+    if self.__use_model:
+      result, color = self.query_model()
+    else:
+      result, color = self.query_in_hsv()
+
+    response.data = result
+    self.silo_check_publisher.publish(response)
 
   def is_ball_at_top(
     self, request: Trigger.Request, response: Trigger.Response
