@@ -244,6 +244,7 @@ class ImageReceiverNode(Node):
         self.get_logger().error(f"Error receiving image: {str(e)}")
 
   def silo_check_callback(self, msg: UInt8):
+    self.get_logger().info(f"Received message: {msg.data}")
     if msg.data != 0xA5:
       return
     response = Bool()
@@ -251,7 +252,7 @@ class ImageReceiverNode(Node):
     if self.last_received_img is None:
       self.get_logger().warn("No image to compare")
       self.silo_check_publisher.publish(response)
-      return
+      return response
 
     if self.__use_model:
       result, color = self.query_model()

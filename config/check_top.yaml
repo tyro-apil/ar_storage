@@ -6,18 +6,18 @@
     threshold: 0.7
 
     top_roi: [0,0,921,275]
-    match_fraction: 0.50
+    match_fraction: 0.25
 
     red1_h_low: 0
     red1_s_low: 100
-    red1_v_low: 80
+    red1_v_low: 50
     red1_h_high: 10
     red1_s_high: 255
     red1_v_high: 255
 
     red2_h_low: 170
     red2_s_low: 100
-    red2_v_low: 80
+    red2_v_low: 50
     red2_h_high: 180
     red2_s_high: 255
     red2_v_high: 255
