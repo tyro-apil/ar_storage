@@ -6,3 +6,6 @@
     silo_y: -4.289
     silo_radius: 0.125
     min_silo_area: 20000  # Minimum area of a silo in pixels
+
+    silos_x_pit_day: [0.75, 0.0, -0.75]
+    silo_y_pit_day: -1.640

@@ -10,10 +10,8 @@ class StateEstimation(Node):
   def __init__(self):
     super().__init__("state_estimation")
 
-    self.declare_parameter("team_color", "blue")
-    self.declare_parameter("width", 921)
-    self.declare_parameter("height", 518)
-    self.declare_parameter("min_silo_area", 1500)
+    self.declare_params()
+    self.read_params()
 
     self.silos_state_publisher = self.create_publisher(SiloArray, "state_image", 10)
     self.detections_subscriber = self.create_subscription(
@@ -22,16 +20,38 @@ class StateEstimation(Node):
     self.detections_subscriber
 
     self.silos_state_msg = SiloArray()
-    team_color = self.get_parameter("team_color").get_parameter_value().string_value
 
     ########################################
     # self.silo_order_descending = False
-    if team_color == "blue":
+    if self.team_color == "blue":
       self.silo_order_descending = False
     else:
       self.silo_order_descending = True
-
     ########################################
+    self.__tolerance = 0.05
+
+    self.state = None
+    self.silos_num = None
+    self.balls_num = None
+    self.get_logger().info("Silo state estimation node started.")
+
+  def declare_params(self):
+    self.declare_parameter("enable_pit_day", False)
+    self.declare_parameter("team_color", "blue")
+    self.declare_parameter("width", 921)
+    self.declare_parameter("height", 518)
+    self.declare_parameter("min_silo_area", 1500)
+
+    self.declare_parameter("silos_count_game_day", 5)
+    self.declare_parameter("silos_count_pit_day", 3)
+
+  def read_params(self):
+    self.team_color = (
+      self.get_parameter("team_color").get_parameter_value().string_value
+    )
+    self.__enable_pit_day = (
+      self.get_parameter("enable_pit_day").get_parameter_value().bool_value
+    )
 
     self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
     self.__image_height = (
@@ -40,12 +60,17 @@ class StateEstimation(Node):
     self.__min_silo_area = (
       self.get_parameter("min_silo_area").get_parameter_value().integer_value
     )
-    self.__tolerance = 0.05
+    silos_count_game_day = (
+      self.get_parameter("silos_count_game_day").get_parameter_value().integer_value
+    )
+    silos_count_pit_day = (
+      self.get_parameter("silos_count_pit_day").get_parameter_value().integer_value
+    )
 
-    self.state = None
-    self.silos_num = None
-    self.balls_num = None
-    self.get_logger().info("Silo state estimation node started.")
+    if self.__enable_pit_day:
+      self.silos_count = silos_count_pit_day
+    else:
+      self.silos_count = silos_count_game_day
 
   def detections_callback(self, detections_msg: DetectionArray):
     # breakpoint()
@@ -58,7 +83,7 @@ class StateEstimation(Node):
     # self.get_logger().info(
     #   f"Detected {self.silos_num} silos and {self.balls_num} balls"
     # )
-    if self.silos_num > 5:
+    if self.silos_num > self.silos_count:
       self.get_logger().warn("Too many silos detected")
       return
 

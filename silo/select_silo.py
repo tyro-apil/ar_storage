@@ -24,13 +24,8 @@ class SiloSelection(Node):
     node_name = "silo_selection"
     super().__init__("silo_selection")
 
-    # Declare team color as parameter
-    self.declare_parameter("team_color", "blue")
-    self.declare_parameter("silos_x", [0.0] * 5)
-    self.declare_parameter("silo_z_min", 0.0)
-    self.declare_parameter("silo_z_max", 0.0)
-    self.declare_parameter("silo_y", 0.0)
-    self.declare_parameter("silo_radius", 0.0)
+    self.declare_params()
+    self.read_params()
 
     # Timer to publish two best silos
     self.create_timer(0.05, self.timer_callback)
@@ -54,24 +49,6 @@ class SiloSelection(Node):
       UInt8MultiArray, "/silo_number", 10
     )
     self.game_over_pub = self.create_publisher(Bool, "/is_game_over", 10)
-
-    # Get team color as object variable for silo selection
-    self.team_color = (
-      self.get_parameter("team_color").get_parameter_value().string_value
-    )
-    self.silos_x = (
-      self.get_parameter("silos_x").get_parameter_value().double_array_value
-    )
-    self.silo_z_min = (
-      self.get_parameter("silo_z_min").get_parameter_value().double_value
-    )
-    self.silo_z_max = (
-      self.get_parameter("silo_z_max").get_parameter_value().double_value
-    )
-    self.silo_y = self.get_parameter("silo_y").get_parameter_value().double_value
-    self.silo_radius = (
-      self.get_parameter("silo_radius").get_parameter_value().double_value
-    )
 
     # Get x,y of silos
     self.silos_xy = [(x, self.silo_y) for x in self.silos_x]
@@ -111,6 +88,66 @@ class SiloSelection(Node):
     # baselink translation w.r.t. map
     self.translation_map2base = None
 
+  def declare_params(self):
+    self.declare_parameter("enable_pit_day", False)
+    self.declare_parameter("team_color", "blue")
+
+    self.declare_parameter("silos_x", [0.0] * 5)
+    self.declare_parameter("silo_z_min", 0.0)
+    self.declare_parameter("silo_z_max", 0.0)
+    self.declare_parameter("silo_y", 0.0)
+    self.declare_parameter("silo_radius", 0.0)
+
+    self.declare_parameter("silos_count_game_day", 5)
+    self.declare_parameter("silos_count_pit_day", 3)
+
+    self.declare_parameter("silos_x_pit_day", [0.0] * 3)
+    self.declare_parameter("silo_y_pit_day", 0.0)
+    pass
+
+  def read_params(self):
+    self.__enable_pit_day = (
+      self.get_parameter("enable_pit_day").get_parameter_value().bool_value
+    )
+    self.team_color = (
+      self.get_parameter("team_color").get_parameter_value().string_value
+    )
+
+    self.silos_x = (
+      self.get_parameter("silos_x").get_parameter_value().double_array_value
+    )
+    self.silo_z_min = (
+      self.get_parameter("silo_z_min").get_parameter_value().double_value
+    )
+    self.silo_z_max = (
+      self.get_parameter("silo_z_max").get_parameter_value().double_value
+    )
+    self.silo_y = self.get_parameter("silo_y").get_parameter_value().double_value
+    self.silo_radius = (
+      self.get_parameter("silo_radius").get_parameter_value().double_value
+    )
+
+    silos_count_game_day = (
+      self.get_parameter("silos_count_game_day").get_parameter_value().integer_value
+    )
+    silos_count_pit_day = (
+      self.get_parameter("silos_count_pit_day").get_parameter_value().integer_value
+    )
+
+    silos_x_pit_day = (
+      self.get_parameter("silos_x_pit_day").get_parameter_value().double_array_value
+    )
+    silo_y_pit_day = (
+      self.get_parameter("silo_y_pit_day").get_parameter_value().double_value
+    )
+
+    self.silos_count = silos_count_game_day
+    if self.__enable_pit_day:
+      self.silos_count = silos_count_pit_day
+
+      self.silos_x = silos_x_pit_day
+      self.silo_y = silo_y_pit_day
+
   def timer_callback(self):
     self.publish_silo_numbers_msg()
     # return
@@ -131,7 +168,7 @@ class SiloSelection(Node):
       # self.get_logger().info("Waiting for baselink pose")
       return
 
-    if len(self.full_silos_index) == 5:
+    if len(self.full_silos_index) == self.silos_count:
       self.update_game_over_state(True)
       self.publish_game_over_state()
       return

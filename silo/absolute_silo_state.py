@@ -20,14 +20,8 @@ class AbsoluteStateEstimation(Node):
   def __init__(self):
     super().__init__("absolute_state_estimation")
 
-    self.declare_parameter("width", 921)
-    self.declare_parameter("consistency_threshold", 5)
-    self.declare_parameter("silos_state", [""] * 5)
-    self.declare_parameter("team_color", "blue")
+    self.declare_params()
 
-    self.team_color = (
-      self.get_parameter("team_color").get_parameter_value().string_value
-    )
     self.TEAM_REPR = "B"
     self.OPPONENT_REPR = "R"
     if self.team_color == "red":
@@ -61,16 +55,11 @@ class AbsoluteStateEstimation(Node):
     self.robot_state = self.robot_state_mapping[0]
     self.silos_absolute_state_msg = SiloArray()
     self.silos_absolute_state = [
-      {"index": i + 1, "state": "", "bbox": [None] * 4} for i in range(5)
+      {"index": i + 1, "state": "", "bbox": [None] * 4} for i in range(self.silos_count)
     ]
     self.update_silos_absolute_state_msg()
     self.silos_relative_state_received = None
     self.__aligned_silo = 0
-
-    self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
-    self.__consistency_threshold = (
-      self.get_parameter("consistency_threshold").get_parameter_value().integer_value
-    )
 
     self.x_center_image = self.__image_width / 2
     self.received_msg_consistency_counter = 0
@@ -79,6 +68,43 @@ class AbsoluteStateEstimation(Node):
     self.__is_known_state_set = False
 
     self.get_logger().info("Absolute silo state estimation node started.")
+
+  def declare_params(self):
+    self.declare_parameter("team_color", "blue")
+    self.declare_parameter("enable_pit_day", False)
+
+    self.declare_parameter("width", 921)
+    self.declare_parameter("consistency_threshold", 5)
+    self.declare_parameter("silos_state", [""] * 5)
+
+    self.declare_parameter("silos_count_game_day", 5)
+    self.declare_parameter("silos_count_pit_day", 3)
+
+  def read_params(self):
+    self.__enable_pit_day = (
+      self.get_parameter("enable_pit_day").get_parameter_value().bool_value
+    )
+    self.team_color = (
+      self.get_parameter("team_color").get_parameter_value().string_value
+    )
+
+    self.__image_width = self.get_parameter("width").get_parameter_value().integer_value
+    self.__consistency_threshold = (
+      self.get_parameter("consistency_threshold").get_parameter_value().integer_value
+    )
+
+    silos_count_game_day = (
+      self.get_parameter("silos_count_game_day").get_parameter_value().integer_value
+    )
+    silos_count_pit_day = (
+      self.get_parameter("silos_count_pit_day").get_parameter_value().integer_value
+    )
+
+    if self.__enable_pit_day:
+      self.silos_count = silos_count_pit_day
+    else:
+      self.silos_count = silos_count_game_day
+    pass
 
   def parameters_change_callback(self, parameters: List[Parameter]):
     for parameter in parameters:
@@ -128,19 +154,19 @@ class AbsoluteStateEstimation(Node):
       # self.get_logger().warn("Messages across frames are inconsistent")
       return
 
-    ## check if all 5 states are visible
+    ## check if all silos are visible
     # if YES, proceed
     # if NO, yet to implement...
-    if len(silos_received_state) > 5 or len(silos_received_state) == 0:
+    if len(silos_received_state) > self.silos_count or len(silos_received_state) == 0:
       # self.get_logger().warn(f"{len(silos_received_state)} silos are visible.....")
       return
 
-    if len(silos_received_state) < 5:
+    if len(silos_received_state) < self.silos_count:
       silos_received_state = self.predict_full_state(partial_state=silos_received_state)
       if silos_received_state is None:
         return
 
-    if self.__is_known_state_set or len(silos_received_state) != 5:
+    if self.__is_known_state_set or len(silos_received_state) != self.silos_count:
       ## Get consistent state from received state
       silos_received_state = self.compute_consistent_state(silos_received_state)
 
