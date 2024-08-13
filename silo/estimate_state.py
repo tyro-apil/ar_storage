@@ -118,7 +118,7 @@ class StateEstimation(Node):
     balls = list(
       filter(
         lambda detection: detection.class_name != "silo"
-        and detection.class_name != "purple",
+        and (detection.class_name != "purple" or detection.class_name != "purple-ball"),
         detections,
       )
     )
@@ -159,9 +159,9 @@ class StateEstimation(Node):
     for i, silo in enumerate(state):
       silo_state = ""
       for ball in silo:
-        if ball.class_name == "red":
+        if ball.class_name == "red" or ball.class_name == "red-ball":
           silo_state += "R"
-        elif ball.class_name == "blue":
+        elif ball.class_name == "blue" or ball.class_name == "blue-ball":
           silo_state += "B"
       state_repr[i] = silo_state
     return state_repr
