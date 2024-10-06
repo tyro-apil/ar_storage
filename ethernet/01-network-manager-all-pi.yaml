@@ -1,0 +1,10 @@
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    eth0:     # Replace with appropriate interface name
+      addresses:
+        - 192.168.1.2/24    # Replace with appropriate IP address and subnet mask
+      routes:
+        - to: default
+          via: 192.168.1.1  # Replace with appropriate gateway IP address
